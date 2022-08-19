@@ -216,6 +216,9 @@
   (setf (gethash "PHI" *functions*) (push! (/ 2 (+ 1 (sqrt 5.0d0)))))
   (setf (gethash "E" *functions*) (push! (exp 1.0d0)))
   (setf (gethash "I" *functions*) (push! #C(0 1)))
+
+  ;; special functions
+  (setf (gethash "CLEAR" *functions*) (set! nil))
   )
 
 (defun print-stack (stack)
@@ -229,7 +232,7 @@
                 (t (format t "~20:<~a~>~%" x))))
           (reverse stack))
   (when (null stack)
-    (format t "Empty Stack~%"))
+    (format t "~30:<Stack is empty~>~%"))
   (format t "~{-~*~}~%" (loop for i from 0 to 30 collect i)))
 
 ;; TODO: add looping construct (woo turing completeness!)
@@ -238,40 +241,41 @@
         (*read-default-float-format* 'double-float))
     (init-builtin-functions)
     (handler-case
-        (loop
-          (handler-case
-              (progn
-                (print-stack stack)
-                (format t "> ") (finish-output)
-                (let ((input (read)))
-                  (format t "~%")
-                  (cond
-                    ((symbol= input 'quit)
-                     (return))
-                    ;; UNDO
-                    ((symbol= input 'undo)
-                     (when (null (car *history*))
-                       (error 'rpn-cannot-undo))
-                     (push stack (cdr *history*))
-                     (setf stack (pop (car *history*))))
-                    ;; REDO
-                    ((symbol= input 'redo)
-                     (when (null (cdr *history*))
-                       (error 'rpn-cannot-redo))
-                     (push stack (car *history*))
-                     (setf stack (pop (cdr *history*))))
-                    ;; Otherwise
-                    (t (let ((action (produce-action input)))
-                         (push stack (car *history*))
-                         (setf (cdr *history*) nil)
-                         (setf stack (run! stack action)))))))
-            (rpn-cannot-undo () (format t "Error: Nothing to undo~%"))
-            (rpn-cannot-redo () (format t "Error: Nothing to redo~%"))
-            (rpn-stack-empty () (format t "Error: Not enough elements on stack~%"))
-            (rpn-unsupported-element (e) (format t "Unsupported element: ~a~%" (rpn-element e)))
-            (rpn-undefined-function (e) (format t "Undefined Function: ~a~%" (rpn-name e)))
-            (type-error (e) (format t "Type Error: ~a~%" e))
-            (end-of-file (e) (signal e)) ;; pass the condition 
-            (error (e) (format t "Error: ~a~%" e))
-            ))
+      (loop
+        (handler-case
+          (progn
+            (print-stack stack)
+            (format t "> ") (finish-output)
+            (let ((input (read)))
+              (format t "~%")
+              (cond
+                ((symbol= input 'quit)
+                 (return))
+                ;; UNDO
+                ((symbol= input 'undo)
+                 (when (null (car *history*))
+                   (error 'rpn-cannot-undo))
+                 (push stack (cdr *history*))
+                 (setf stack (pop (car *history*))))
+                ;; REDO
+                ((symbol= input 'redo)
+                 (when (null (cdr *history*))
+                   (error 'rpn-cannot-redo))
+                 (push stack (car *history*))
+                 (setf stack (pop (cdr *history*))))
+                ;; Otherwise
+                (t (let ((action (produce-action input)))
+                     (let ((new-stack (run! stack action)))
+                       (push stack (car *history*))
+                       (setf (cdr *history*) nil)
+                       (setf stack new-stack)))))))
+          (rpn-cannot-undo () (format t "Error: Nothing to undo~%"))
+          (rpn-cannot-redo () (format t "Error: Nothing to redo~%"))
+          (rpn-stack-empty () (format t "Error: Not enough elements on stack~%"))
+          (rpn-unsupported-element (e) (format t "Unsupported element: ~a~%" (rpn-element e)))
+          (rpn-undefined-function (e) (format t "Undefined Function: ~a~%" (rpn-name e)))
+          (type-error (e) (format t "Type Error: ~a~%" e))
+          (end-of-file (e) (signal e)) ;; pass the condition 
+          (error (e) (format t "Error: ~a~%" e))
+          ))
       (end-of-file () nil))))
