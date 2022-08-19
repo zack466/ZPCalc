@@ -115,6 +115,10 @@ Operations typically preserve exactness if possible, but any irrational operatio
 ### Constants (more to come)
  - `pi`, `e`, `phi`, `i`
 
+### Special Functions
+ - `undo` - tries to undo the last operation. You can undo any number of times.
+ - `redo` - tries to redo the last undo. If you undo and then make a change to the stack, you can no longer "redo" back to the previous state.
+
 ## Defining your own functions
 You can define a new function to be a sequence of existing functions (or constants).
 Note that the builtin functions cannot be overriden.
