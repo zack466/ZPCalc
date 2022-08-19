@@ -22,6 +22,10 @@
 ;; min/max fixnum, float epislon, etc
 ;; plus variations like 2pi, pi2, pi3, 2pi3, etc
 
+;; is a Zipper - car contains undo history, cdr contains redo
+;; cannot undo function definitions, only state of the stack
+(defvar *history* (cons nil nil))
+
 ;; def main:
 ;; loop until end of input:
 ;;   match
@@ -35,7 +39,6 @@
 ;;              (def word &rest body) -> word will now expand into each term in its body
 ;;              (def (fn-name &rest args) &rest body) -> fn-name will pop off args and then expand into body
 ;;                                                       args can be referred to by prepending "$"
-
 (defun apply! (symbol)
   (lambda (s)
     (let ((body (gethash (symbol-name symbol) *functions*)))
@@ -43,12 +46,14 @@
           (error 'rpn-undefined-function :name symbol)
           (funcall body s)))))
 
-(defun >>> (first &rest rest)
+;; binds together actions using >>
+;; can't use reduce bc >> is a macro...
+(defun >>> (actions)
   (labels ((rec (acc rest)
              (if (null rest)
                  acc
                  (rec (>> acc (car rest)) (cdr rest)))))
-    (rec first rest)))
+    (rec (car actions) (cdr actions))))
 
 (defun produce-action (input)
   (cond
@@ -68,11 +73,12 @@
      (push! (cadr input)))
     ;; symbol/function
     ((and (listp input)
-          (eq (car input) 'def))
+          (symbol= (car input) 'def))
      (cond
        ;; symbol function - simply gets expanded
        ((symbolp (cadr input))
-        (>>> (mapcar #'produce-action (cddr input))))
+        (setf (gethash (symbol-name (cadr input)) *functions*) (>>> (mapcar #'produce-action (cddr input))))
+        (return!))
        ;; function function - take arguments into account
        ;; ((listp (cadr input))
        ;;  (destructuring-bind (fn-name &rest args)
@@ -96,12 +102,16 @@
 (defun bool->int (b)
   (if b 1 0))
 
+(defun ->double (x)
+  (coerce x 'double-float))
+
 (defun init-builtin-functions ()
   ;; numerical operations
   (setf (gethash "+" *functions*) (apply-binary! #'+))
   (setf (gethash "-" *functions*) (apply-binary! #'-))
   (setf (gethash "*" *functions*) (apply-binary! #'*))
   (setf (gethash "/" *functions*) (apply-binary! #'/))
+  (setf (gethash "//" *functions*) (apply-binary! (compose #'floor #'/))) ;; int division
   (setf (gethash "_" *functions*) (apply-unary! #'-))
 
   ;; stack primitives
@@ -124,7 +134,7 @@
   (setf (gethash "IF" *functions*) (do! (test <- pop!)
                                        (a <- pop!)
                                        (b <- pop!)
-                                       (push! (if (not (zerop (test))) a b))))
+                                       (push! (if (not (zerop test)) a b))))
   (setf (gethash "ZEROP" *functions*) (apply-unary! (compose #'bool->int #'zerop )))
   (setf (gethash "ONEP" *functions*) (apply-unary! #'(lambda (x) (bool->int (zerop (1- x))))))
   (setf (gethash "PLUSP" *functions*) (apply-unary! (compose #'bool->int #'plusp)))
@@ -149,62 +159,99 @@
   (setf (gethash "CEILING" *functions*) (apply-unary! #'ceiling))
   (setf (gethash "TRUNCATE" *functions*) (apply-unary! #'truncate))
   (setf (gethash "ROUND" *functions*) (apply-unary! #'round))
-  (setf (gethash "FFLOOR" *functions*) (apply-unary! #'ffloor))
-  (setf (gethash "FCEILING" *functions*) (apply-unary! #'fceiling))
-  (setf (gethash "FTRUNCATE" *functions*) (apply-unary! #'ftruncate))
-  (setf (gethash "FROUND" *functions*) (apply-unary! #'fround))
   (setf (gethash "MOD" *functions*) (apply-binary! #'mod))
   (setf (gethash "REM" *functions*) (apply-binary! #'rem))
   (setf (gethash "RANDOM" *functions*) (apply-unary! #'random)) ;; random value between 0 and arg
-  (setf (gethash "RAND" *functions*) (push! (random (+ 1.0f0 single-float-epsilon)))) ;; random value between 0.0 and 1.0
+  (setf (gethash "RAND" *functions*) (push! (random (+ 1.0d0 double-float-epsilon)))) ;; random value between 0.0 and 1.0
 
   ;; complex numbers
   (setf (gethash "CONJUGATE" *functions*) (apply-unary! #'conjugate))
   (setf (gethash "PHASE" *functions*) (apply-unary! #'phase))
 
   ;; irrational & trig
-  (setf (gethash "EXP" *functions*) (apply-unary! #'exp))
-  (setf (gethash "EXPT" *functions*) (apply-binary! #'expt))
-  (setf (gethash "LN" *functions*) (apply-unary! #'(lambda (x) (log x))))
-  (setf (gethash "LOG" *functions*) (apply-binary! #'log))
-  (setf (gethash "SQRT" *functions*) (apply-unary! #'sqrt))
+  ;; all will result in a double-float (except isqrt)
+  (setf (gethash "EXP" *functions*) (apply-unary! (compose #'->double #'exp)))
+  (setf (gethash "EXPT" *functions*) (apply-binary! (compose #'->double #'expt)))
+  (setf (gethash "LN" *functions*) (apply-unary! #'(lambda (x) (log (->double x)))))
+  (setf (gethash "LOG" *functions*) (apply-binary! (compose #'->double #'log)))
+  (setf (gethash "SQRT" *functions*) (apply-unary! (compose #'->double #'sqrt)))
   (setf (gethash "ISQRT" *functions*) (apply-unary! #'isqrt))
-  (setf (gethash "SIN" *functions*) (apply-unary! #'sin))
-  (setf (gethash "COS" *functions*) (apply-unary! #'cos))
-  (setf (gethash "TAN" *functions*) (apply-unary! #'tan))
-  (setf (gethash "ASIN" *functions*) (apply-unary! #'asin))
-  (setf (gethash "ACOS" *functions*) (apply-unary! #'acos))
-  (setf (gethash "ATAN" *functions*) (apply-unary! #'atan))
-  (setf (gethash "ATAN2" *functions*) (apply-binary! #'atan))
-  (setf (gethash "CIS" *functions*) (apply-unary! #'cis))
-  (setf (gethash "SINH" *functions*) (apply-unary! #'sinh))
-  (setf (gethash "COSH" *functions*) (apply-unary! #'cosh))
-  (setf (gethash "TANH" *functions*) (apply-unary! #'tanh))
-  (setf (gethash "ASINH" *functions*) (apply-unary! #'asinh))
-  (setf (gethash "ACOSH" *functions*) (apply-unary! #'acosh))
-  (setf (gethash "ATANH" *functions*) (apply-unary! #'atanh))
+  (setf (gethash "SIN" *functions*) (apply-unary! (compose #'->double #'sin)))
+  (setf (gethash "COS" *functions*) (apply-unary! (compose #'->double #'cos)))
+  (setf (gethash "TAN" *functions*) (apply-unary! (compose #'->double #'tan)))
+  (setf (gethash "ASIN" *functions*) (apply-unary! (compose #'->double #'asin)))
+  (setf (gethash "ACOS" *functions*) (apply-unary! (compose #'->double #'acos)))
+  (setf (gethash "ATAN" *functions*) (apply-unary! (compose #'->double #'atan)))
+  (setf (gethash "ATAN2" *functions*) (apply-binary! (compose #'->double #'atan)))
+  (setf (gethash "CIS" *functions*) (apply-unary! (compose #'->double #'cis)))
+  (setf (gethash "SINH" *functions*) (apply-unary! (compose #'->double #'sinh)))
+  (setf (gethash "COSH" *functions*) (apply-unary! (compose #'->double #'cosh)))
+  (setf (gethash "TANH" *functions*) (apply-unary! (compose #'->double #'tanh)))
+  (setf (gethash "ASINH" *functions*) (apply-unary! (compose #'->double #'asinh)))
+  (setf (gethash "ACOSH" *functions*) (apply-unary! (compose #'->double #'acosh)))
+  (setf (gethash "ATANH" *functions*) (apply-unary! (compose #'->double #'atanh)))
 
   ;; type conversions/constructors
-  (setf (gethash "FLOAT" *functions*) (apply-unary! #'float))
+  (setf (gethash "FLOAT" *functions*) (apply-unary! #'(lambda (x) (float x 1.0d0))))
   (setf (gethash "RATIONAL" *functions*) (apply-unary! #'rational))
   (setf (gethash "NUMERATOR" *functions*) (apply-unary! #'numerator))
   (setf (gethash "DENOMINATOR" *functions*) (apply-unary! #'denominator))
   (setf (gethash "COMPLEX" *functions*) (apply-binary! #'complex))
   (setf (gethash "REALPART" *functions*) (apply-unary! #'realpart))
   (setf (gethash "IMAGPART" *functions*) (apply-unary! #'imagpart))
+
+  ;; constants
+  (setf (gethash "PI" *functions*) (push! pi))
+  (setf (gethash "E" *functions*) (push! (exp 1.0d0)))
+  (setf (gethash "I" *functions*) (push! #C(0 1)))
   )
 
+(defun print-stack (stack)
+  (format t "~{-~*~}~%" (loop for i from 0 to 30 collect i))
+  (mapcar #'(lambda (x)
+              (typecase x
+                (fixnum (format t "~30:<~D~>~%" x))
+                (complex (format t "~30:<~a + ~ai~>~%" (realpart x) (imagpart x)))
+                (number (format t "~30:<~a~>~%" x))
+                ;; (number (format t "~30:<~30,10E~>~%" x))
+                (t (format t "~20:<~a~>~%" x))))
+          (reverse stack))
+  (when (null stack)
+    (format t "Empty Stack~%"))
+  (format t "~{-~*~}~%" (loop for i from 0 to 30 collect i)))
+
 (defun main ()
-  (let ((stack nil))
+  (let ((stack nil)
+        (*read-default-float-format* 'double-float))
     (init-builtin-functions)
     (handler-case
         (loop
           (handler-case
               (progn
-                (format t "~S~%" stack)
+                (print-stack stack)
+                (format t "history: ~S~%" *history*)
+                (format t "> ") (finish-output)
                 (let ((input (read)))
-                  (let ((action (produce-action input)))
-                    (setf stack (run! stack action)))))
+                  (cond
+                    ;; UNDO
+                    ((symbol= input 'undo)
+                     (when (null (car *history*))
+                       (error 'rpn-cannot-undo))
+                     (push stack (cdr *history*))
+                     (setf stack (pop (car *history*))))
+                    ;; REDO
+                    ((symbol= input 'redo)
+                     (when (null (cdr *history*))
+                       (error 'rpn-cannot-redo))
+                     (push stack (car *history*))
+                     (setf stack (pop (cdr *history*))))
+                    ;; Otherwise
+                    (t (let ((action (produce-action input)))
+                         (push stack (car *history*))
+                         (setf (cdr *history*) nil)
+                         (setf stack (run! stack action)))))))
+            (rpn-cannot-undo () (format t "Error: Nothing to undo~%"))
+            (rpn-cannot-redo () (format t "Error: Nothing to redo~%"))
             (rpn-stack-empty () (format t "Error: Not enough elements on stack~%"))
             (rpn-unsupported-element (e) (format t "Unsupported element: ~a~%" (rpn-element e)))
             (rpn-undefined-function (e) (format t "Undefined Function: ~a~%" (rpn-name e)))

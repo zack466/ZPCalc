@@ -6,6 +6,8 @@
     #:rpn-stack-empty
     #:rpn-name
     #:rpn-element
+    #:rpn-cannot-undo
+    #:rpn-cannot-redo
     ))
 (in-package :rpncalc/conditions)
 
@@ -16,3 +18,6 @@
   ((element :initarg :element :initform nil :reader rpn-element)))
 
 (define-condition rpn-stack-empty (error) ())
+
+(define-condition rpn-cannot-undo (error) ())
+(define-condition rpn-cannot-redo (error) ())

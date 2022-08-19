@@ -15,6 +15,7 @@
     #:pop!
     #:drop!
     #:dup!
+    #:id!
     #:do!))
 (in-package :rpncalc/state)
 
@@ -35,7 +36,7 @@
 ;; (>>) :: State a -> State a -> State a
 ;; does the same as bind except ignores the previous return value
 (defmacro >> (action1 action2)
-  (with-gensyms (s ret)
+  (with-gensyms (ret)
     `(>>= ,action1 (lambda (,ret)
                      (declare (ignorable ,ret))
                      ,action2))))
@@ -46,6 +47,11 @@
   (with-gensyms (result)
     `(let ((,result (funcall ,action ,initial-state)))
        (values (cdr ,result) (car ,result)))))
+
+;; identity - does nothing
+(defmacro id! ()
+  (with-gensyms (s)
+    `(lambda (,s) (declare (ignorable ,s)) (cons nil ,s))))
 
 ;; set return value to state, keep state the same
 (defmacro get! ()
@@ -58,7 +64,7 @@
     `(lambda (,s) (cons nil ,x))))
 
 ;; return
-(defmacro return! (x)
+(defmacro return! (&optional x)
   (with-gensyms (s)
     `(lambda (,s) (cons ,x ,s))))
 
