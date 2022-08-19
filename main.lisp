@@ -245,6 +245,8 @@
                 (format t "> ") (finish-output)
                 (let ((input (read)))
                   (cond
+                    ((symbol= input 'quit)
+                     (return))
                     ;; UNDO
                     ((symbol= input 'undo)
                      (when (null (car *history*))

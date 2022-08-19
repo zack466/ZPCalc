@@ -15,6 +15,7 @@ Type a number and then press enter to push it on to the stack.
 You can execute a function by typing its name.
 For example, if you have two numbers on the stack and you enter "+", you will get the sum of those two numbers.
 For a list of builtin functions, see below.
+Quit by entering `quit` or sending EOF with ctrl-d.
 
 ## Builtin datatypes
 
@@ -116,6 +117,7 @@ Operations typically preserve exactness if possible, but any irrational operatio
  - `pi`, `e`, `phi`, `i`
 
 ### Special Functions
+ - `quit` - quits the calculator
  - `undo` - tries to undo the last operation. You can undo any number of times.
  - `redo` - tries to redo the last undo. If you undo and then make a change to the stack, you can no longer "redo" back to the previous state.
 
