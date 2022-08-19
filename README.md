@@ -128,6 +128,10 @@ Simply enter in `(def <your-fn-name> <thing1> <thing2> ...)`.
 For example, we can define a function to calculate `x + 1/x` where `x` is the top stack element as follows: `(def foo dup inv +)`.
 Now, running `10 foo` will return `101/10`.
 
+## Advanced input strategies
+If you enter multiple tokens, they will all be processed sequentially.
+For example, typing `30 20 * <return>` will result in `600` (it's the same as doing `30 <return> 20 <return> * <return>`).
+
 ## Addendum
 
 Float precision makes me sad :(

@@ -244,6 +244,7 @@
                 (print-stack stack)
                 (format t "> ") (finish-output)
                 (let ((input (read)))
+                  (format t "~%")
                   (cond
                     ((symbol= input 'quit)
                      (return))
