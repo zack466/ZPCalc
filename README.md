@@ -18,7 +18,7 @@ For a list of builtin functions, see below.
 
 ## Builtin datatypes
 
-I'm piggybacking off of Common Lisp's datatypes: integer (aka bignum), rational (one bignum divided by another), and double-precision float
+I'm piggybacking off of Common Lisp's datatypes: integer (aka bignum), rational (one bignum divided by another), double-precision float, and complex.
 Operations typically preserve exactness if possible, but any irrational operations (such as `exp`, `sqrt`, and `sin`) will coerce the number into an inexact float.
 
 ### Builtin functions
