@@ -50,6 +50,10 @@
             (funcall body-user s))
           (funcall body s))))))
 
+(defun eval! ()
+  (do! (top <- pop!)
+       (apply! top)))
+
 ;; binds together actions using >>
 ;; can't use reduce bc >> is a macro...
 (defun >>> (actions)
@@ -219,6 +223,7 @@
 
   ;; special functions
   (setf (gethash "CLEAR" *functions*) (set! nil))
+  (setf (gethash "EVAL" *functions*) (eval!))
   )
 
 (defun print-stack (stack)
@@ -229,7 +234,7 @@
                 (complex (format t "~30:<~a + ~ai~>~%" (realpart x) (imagpart x)))
                 (number (format t "~30:<~a~>~%" x))
                 ;; (number (format t "~30:<~30,10E~>~%" x))
-                (t (format t "~20:<~a~>~%" x))))
+                (t (format t "~30:<~a~>~%" x))))
           (reverse stack))
   (when (null stack)
     (format t "~30:<Stack is empty~>~%"))

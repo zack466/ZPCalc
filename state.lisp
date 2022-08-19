@@ -61,7 +61,7 @@
 ;; no return value, set state to given value
 (defmacro set! (x)
   (with-gensyms (s)
-    `(lambda (,s) (cons nil ,x))))
+    `(lambda (,s) (declare (ignorable ,s)) (cons nil ,x))))
 
 ;; return
 (defmacro return! (&optional x)

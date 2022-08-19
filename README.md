@@ -30,7 +30,7 @@ Operations typically preserve exactness if possible, but any irrational operatio
 - `swap` - swaps the top two stack elements
 - `rot` - rotates the top 3 elements
 
-### Basic Numeric Operations
+#### Basic Numeric Operations
 - `+` - adds the top two numbers on the stack
 - `-` - subtracts the top two numbers on the stack
 - `*` - multiplies the top two numbers on the stack
@@ -39,12 +39,12 @@ Operations typically preserve exactness if possible, but any irrational operatio
 - `_` (or `neg`) - negates the top element of the stack
 - `inv` - replaces the top element of the stack with its reciprocal
 
-### Additional Numeric Operations
+#### Additional Numeric Operations
  - `max` - returns the maximum of the top two stack elements
  - `min` - returns the minimum of the top two stack elements
  - `gcd` - returns the greatest common denominator of the top two stack elements
  - `lcm` - returns the least common multiple of the top two stack elements
- - `abs` - returns the absolute value of the top stack elements
+ - `abs` - returns the absolute value of the top stack element
  - `signum` - returns -1, 0, or 1 depending on the top stack element if negative, zero, or positive
  - `floor` - returns the floor of the top stack elements
  - `ceiling` - returns the ceiling of the top stack elements
@@ -56,7 +56,7 @@ Operations typically preserve exactness if possible, but any irrational operatio
  - `random` - returns a random integer between 0 (inclusive) and the top stack element (exclusive)
  - `rand` - returns a random float between 0 and 1
 
-### Irrational Operations (will always result in a float)
+#### Irrational Operations (will always result in a float)
  - `exp` - returns e raised to the top stack element
  - `expt` (or `pow`) - returns a^b, where a and b are the top two stack elements
  - `ln` - returns the top stack element log e
@@ -79,7 +79,7 @@ Operations typically preserve exactness if possible, but any irrational operatio
  - `acosh` - returns the inverse hyperbolic cos of the top stack element
  - `atanh` - returns the inverse hyperbolic tan of the top stack element
 
-### Type-based Operations
+#### Type-based Operations
  - `float` - converts the top stack element into a float
  - `rational` - converts the top stack element into a rational
  - `numerator` - if the top element is rational, returns its numerator
@@ -90,7 +90,7 @@ Operations typically preserve exactness if possible, but any irrational operatio
  - `realpart` - if the top element is complex, return its real part
  - `imagpart` - if the top element is complex, return its imaginary part
 
-### Logic Operations (where 0 is "false" and everything else is "true")
+#### Logic Operations (where 0 is "false" and everything else is "true")
  - `not` - returns the bitwise not of the top two stack elements
  - `and` - returns the bitwise and of the top two stack elements
  - `or` - returns the bitwise or of the top two stack elements
@@ -113,14 +113,15 @@ Operations typically preserve exactness if possible, but any irrational operatio
  - `<=` - returns 1 if a <= b, where a and b are the top two stack elements, otherwise 0
  - `=` - returns 1 if a = b, where a and b are the top two stack elements, otherwise 0
 
-### Constants (more to come)
+#### Constants (more to come)
  - `pi`, `e`, `phi`, `i`
 
-### Special Functions
+#### Special Functions
  - `quit` - quits the calculator
  - `clear` - clears the stack
  - `undo` - tries to undo the last operation. You can undo any number of times.
  - `redo` - tries to redo the last undo. If you undo and then make a change to the stack, you can no longer "redo" back to the previous state.
+ - `eval` - tries to execute the function associated with the symbol on the top of the stack
 
 ## Defining your own functions
 You can define a new function to be a sequence of existing functions (or constants).
@@ -132,6 +133,10 @@ Now, running `10 foo` will return `101/10`.
 ## Advanced input strategies
 If you enter multiple tokens, they will all be processed sequentially.
 For example, typing `30 20 * <return>` will result in `600` (it's the same as doing `30 <return> 20 <return> * <return>`).
+
+You can push a symbol onto the stack by prepending it with a single quote.
+For example, entering `'gcd` will push `gcd` onto the stack instead of immediately evaluating it.
+To evaluate the top function on the stack, enter `eval`.
 
 ## Addendum
 
