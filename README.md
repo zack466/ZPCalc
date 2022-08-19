@@ -4,9 +4,9 @@
 
 Requirements: sbcl (or ecl)
 
-1. Git clone this repository
-2. Run `make rpncalc`
-3. Now, you have a static executable called `rpncalc`! Simply run with `./rpncalc`
+1. Git clone this repository and `cd` into it.
+2. Run `make rpncalc`.
+3. Now, you have a static executable called `rpncalc`! Simply run with `./rpncalc`.
 
 ## How to Use
 
