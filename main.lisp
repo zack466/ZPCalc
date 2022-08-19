@@ -16,6 +16,7 @@
 ;; environment:
 ;;   functions: symbol -> action
 (defvar *functions* (make-hash-table :test #'equal))
+(defvar *user-functions* (make-hash-table :test #'equal))
 ;;   variables $symbol -> value to be pushed onto stack
 (defvar *variables* (make-hash-table))
 ;; pi, e, phi, i
@@ -42,9 +43,12 @@
 (defun apply! (symbol)
   (lambda (s)
     (let ((body (gethash (symbol-name symbol) *functions*)))
-      (if (null body)
-          (error 'rpn-undefined-function :name symbol)
-          (funcall body s)))))
+      (let ((body-user (gethash (symbol-name symbol) *user-functions*)))
+        (if (null body)
+          (if (null body-user)
+            (error 'rpn-undefined-function :name symbol)
+            (funcall body-user s))
+          (funcall body s))))))
 
 ;; binds together actions using >>
 ;; can't use reduce bc >> is a macro...
@@ -77,9 +81,9 @@
      (cond
        ;; symbol function - simply gets expanded
        ((symbolp (cadr input))
-        (setf (gethash (symbol-name (cadr input)) *functions*) (>>> (mapcar #'produce-action (cddr input))))
+        (setf (gethash (symbol-name (cadr input)) *user-functions*) (>>> (mapcar #'produce-action (cddr input))))
         (return!))
-       ;; function function - take arguments into account
+       ;; TODO: function function - take arguments into account
        ;; ((listp (cadr input))
        ;;  (destructuring-bind (fn-name &rest args)
        ;;      (cadr input)
@@ -113,14 +117,18 @@
   (setf (gethash "/" *functions*) (apply-binary! #'/))
   (setf (gethash "//" *functions*) (apply-binary! (compose #'floor #'/))) ;; int division
   (setf (gethash "_" *functions*) (apply-unary! #'-))
+  (setf (gethash "NEG" *functions*) (apply-unary! #'-))
 
   ;; stack primitives
   (setf (gethash "DROP" *functions*) (drop!))
+  (setf (gethash "POP" *functions*) (drop!))
   (setf (gethash "SWAP" *functions*) (do! (a <- pop!) (b <- pop!) (push! a) (push! b)))
   (setf (gethash "DUP" *functions*) (dup!))
+  (setf (gethash "ROT" *functions*) (do! (a <- pop!) (b <- pop!) (c <- pop!)
+                                         (push! a) (push! c) (push! b)))
 
   ;; boolean operations
-  (setf (gethash "NOT" *functions*) (apply-unary! #'(lambda (a) (if (zerop a) 1 0))))
+  (setf (gethash "NOT" *functions*) (apply-unary! #'lognot))
   (setf (gethash "AND" *functions*) (apply-binary! #'logand))
   (setf (gethash "OR" *functions*) (apply-binary! #'logior))
   (setf (gethash "XOR" *functions*) (apply-binary! #'logxor))
@@ -135,7 +143,7 @@
                                        (a <- pop!)
                                        (b <- pop!)
                                        (push! (if (not (zerop test)) a b))))
-  (setf (gethash "ZEROP" *functions*) (apply-unary! (compose #'bool->int #'zerop )))
+  (setf (gethash "ZEROP" *functions*) (apply-unary! (compose #'bool->int #'zerop)))
   (setf (gethash "ONEP" *functions*) (apply-unary! #'(lambda (x) (bool->int (zerop (1- x))))))
   (setf (gethash "PLUSP" *functions*) (apply-unary! (compose #'bool->int #'plusp)))
   (setf (gethash "MINUSP" *functions*) (apply-unary! (compose #'bool->int #'minusp)))
@@ -172,8 +180,11 @@
   ;; all will result in a double-float (except isqrt)
   (setf (gethash "EXP" *functions*) (apply-unary! (compose #'->double #'exp)))
   (setf (gethash "EXPT" *functions*) (apply-binary! (compose #'->double #'expt)))
+  (setf (gethash "POW" *functions*) (apply-binary! (compose #'->double #'expt)))
   (setf (gethash "LN" *functions*) (apply-unary! #'(lambda (x) (log (->double x)))))
+  (setf (gethash "LG" *functions*) (apply-unary! #'(lambda (x) (log (->double x) 2))))
   (setf (gethash "LOG" *functions*) (apply-binary! (compose #'->double #'log)))
+  (setf (gethash "LOG10" *functions*) (apply-unary! #'(lambda (x) (log (->double x) 10))))
   (setf (gethash "SQRT" *functions*) (apply-unary! (compose #'->double #'sqrt)))
   (setf (gethash "ISQRT" *functions*) (apply-unary! #'isqrt))
   (setf (gethash "SIN" *functions*) (apply-unary! (compose #'->double #'sin)))
@@ -202,6 +213,7 @@
 
   ;; constants
   (setf (gethash "PI" *functions*) (push! pi))
+  (setf (gethash "PHI" *functions*) (push! (/ 2 (+ 1 (sqrt 5.0d0)))))
   (setf (gethash "E" *functions*) (push! (exp 1.0d0)))
   (setf (gethash "I" *functions*) (push! #C(0 1)))
   )
@@ -220,6 +232,7 @@
     (format t "Empty Stack~%"))
   (format t "~{-~*~}~%" (loop for i from 0 to 30 collect i)))
 
+;; TODO: add looping construct (woo turing completeness!)
 (defun main ()
   (let ((stack nil)
         (*read-default-float-format* 'double-float))
@@ -229,7 +242,6 @@
           (handler-case
               (progn
                 (print-stack stack)
-                (format t "history: ~S~%" *history*)
                 (format t "> ") (finish-output)
                 (let ((input (read)))
                   (cond
