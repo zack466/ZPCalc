@@ -81,7 +81,7 @@
 
 (defmacro top! ()
   (with-gensyms (s)
-    `(lambda (,s) (cons (car ,s) ,s))))
+    `(lambda (,s) (if (null ,s) (error 'rpn-stack-empty) (cons (car ,s) ,s)))))
 
 (defmacro pop! ()
   (with-gensyms (s)

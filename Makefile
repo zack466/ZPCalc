@@ -1,3 +1,6 @@
+run: rpncalc
+	./rpncalc
+
 rpncalc: *.lisp
 	sbcl --eval '(asdf:make :rpncalc)' \
 		--eval '(quit)'
@@ -6,9 +9,6 @@ rpncalc: *.lisp
 	# 	--eval "(defpackage rpncalc (:use :cl) (:export #:main))" \
 	# 	--eval "(asdf:make-build :rpncalc :type :program :epilogue-code '(progn (rpncalc:main) (quit)))" \
 	# 	--eval '(quit)'
-
-run: rpncalc
-	./rpncalc
 
 interactive:
 	sbcl --eval '(asdf:load-system :rpncalc)'

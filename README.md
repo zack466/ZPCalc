@@ -17,20 +17,87 @@ For example, if you have two numbers on the stack and you enter "+", you will ge
 For a list of builtin functions, see below.
 Quit by entering `quit` or sending EOF with ctrl-d.
 
+Note: If you enter multiple tokens, they will all be processed sequentially.
+For example, typing `30 20 * <return>` will result in `600` (it's the same as doing `30 <return> 20 <return> * <return>`).
+
 ## Builtin datatypes
 
 I'm piggybacking off of Common Lisp's datatypes: integer (aka bignum), rational (one bignum divided by another), double-precision float, and complex.
-Operations typically preserve exactness if possible, but any irrational operations (such as `exp`, `sqrt`, and `sin`) will coerce the number into an inexact float.
+Operations typically preserve exactness if possible, but any irrational operations (such as `exp`, `sqrt`, and `sin`) will likely coerce the number into an inexact float.
+Also, note that symbols are not case-sensitive - they will be automatically uppercased (thanks Common Lisp!).
 
-### Builtin functions
+## Defining your own functions/constants
+You can define new functions as a sequence of existing functions (or constants).
+Note that the builtin functions/constants cannot be overridden.
+Simply enter in `(def <your-fn-name> <body> ...)`.
+For example, you can enter `(def c 3e8)` to define the speed of light, c, to be `3 * 10^8`.
+In addition, you can define a function to calculate `x + 1/x` where `x` is the top stack element as follows: `(def foo dup inv +)`.
+Now, running `5 foo` will return `26/5`.
 
-#### Stack Manipulation
+## Variables
+This calculator supports lexically-scoped variables.
+Variables are always prefixed with a colon (like `:x`, for example).
+You can store to top stack value into a variable by entering `(store <var-name>)`.
+Then, entering `:<var-name>` will put the value of the variable onto the stack.
+
+There is also a function `sto` which stores the top value of the stack into an unnamed global register.
+The value of this register can be returned using `rcl`.
+
+Variables are a key part of functions.
+You can declare a function with named arguments by entering `(def (<fn-name> <arg-name> ...) <body> ...)`.
+When you run the function, each of the arguments will popped off the stack and stored into their named variable.
+For example, here is an implementation of a function for calculating the roots of a quadratic (assuming the coefficients `a`, `b`, and `c` are on the stack).
+
+```scheme
+;; takes 3 values, leaves two roots on the stack
+(def (quadratic a b c)
+  :b 2 :a * / neg sto     ;; calculate -b/(2a)
+  square :c :a / - sqrt   ;; get value under square root
+  dup rcl - swap rcl +    ;; apply plus/minus with -b/(2a)
+)
+```
+
+And also, yes, closures are possible (I don't know if this is good or bad).
+
+```scheme
+(def (counter x) (def inc :x 1 + (store x)))
+
+0 counter
+
+inc       ;; 1
+inc       ;; 2
+inc       ;; 3
+inc       ;; 4
+```
+
+## Quoting
+You can push a symbol onto the stack by prepending it with a single quote.
+For example, entering `'gcd` will push `gcd` onto the stack instead of immediately evaluating it.
+To evaluate the top function on the stack, enter `eval`.
+
+You can do the same thing with multiple elements at the same time.
+For example, you can think of `'(2 *)` as a sort of "quoted function" that will double the number on the top of the stack when it gets evaluated.
+Entering `2 '(2 *) eval` does the same thing as `2 2 *` (except maybe with a tiny bit more overhead).
+As an example, consider the function `bi`, which takes one value and applies two quoted functions to it to produce two values.
+
+```scheme
+(def (bi x f1 f2)
+  :x :f1 eval
+  :x :f2 eval
+)
+```
+
+Now, entering `10 '(2 *) '(2 +) bi` will result in `20` and `12` being on top of the stack.
+
+## Builtin functions
+
+### Stack Manipulation
 - `drop` (or `pop`) - removes the top element of the stack
 - `dup` - duplicates the top element of the stack
 - `swap` - swaps the top two stack elements
 - `rot` - rotates the top 3 elements
 
-#### Basic Numeric Operations
+### Basic Numeric Operations
 - `+` - adds the top two numbers on the stack
 - `-` - subtracts the top two numbers on the stack
 - `*` - multiplies the top two numbers on the stack
@@ -39,7 +106,7 @@ Operations typically preserve exactness if possible, but any irrational operatio
 - `_` (or `neg`) - negates the top element of the stack
 - `inv` - replaces the top element of the stack with its reciprocal
 
-#### Additional Numeric Operations
+### Additional Numeric Operations
  - `max` - returns the maximum of the top two stack elements
  - `min` - returns the minimum of the top two stack elements
  - `gcd` - returns the greatest common denominator of the top two stack elements
@@ -52,18 +119,18 @@ Operations typically preserve exactness if possible, but any irrational operatio
  - `round` - rounds the top stack element
  - `mod` - computes the modulo of the top two stack elements
  - `rem` - computes the remainder of the top two stack elements
- - `isqrt` - returns the integer square root (rounded down) of the top stack element
  - `random` - returns a random integer between 0 (inclusive) and the top stack element (exclusive)
  - `rand` - returns a random float between 0 and 1
+ - `isqrt` - returns the integer square root (rounded down) of the top stack element (which must be an integer)
 
-#### Irrational Operations (will always result in a float)
+### Irrational Operations
+ - `pow`  - returns a^b, where a and b are the top two stack elements. Tries to preserve exactness
+ - `sqrt` - returns the square root of the top stack element. Tries to preserve exactness
+ - `log` - returns a log b, where a and b are the top two stack elements. Tries to preserve exactness
+ - `lg` - returns the base 2 log of the top stack element. Tries to preserve exactness
+ - `log10` - returns the base 10 log of the top stack element. Tries to preserve exactness
  - `exp` - returns e raised to the top stack element
- - `expt` (or `pow`) - returns a^b, where a and b are the top two stack elements
- - `ln` - returns the top stack element log e
- - `lg` - returns the top stack element log 2
- - `log10` - returns the top stack element log 10
- - `log` - returns a log b, where a and b are the top two stack elements
- - `sqrt` - returns the square root of the top stack element
+ - `ln` - returns the natural log of the top stack element
  - `sin` - returns the sin of the top stack element
  - `cos` - returns the cos of the top stack element
  - `tan` - returns the tan of the top stack element
@@ -79,7 +146,7 @@ Operations typically preserve exactness if possible, but any irrational operatio
  - `acosh` - returns the inverse hyperbolic cos of the top stack element
  - `atanh` - returns the inverse hyperbolic tan of the top stack element
 
-#### Type-based Operations
+### Type-based Operations
  - `float` - converts the top stack element into a float
  - `rational` - converts the top stack element into a rational
  - `numerator` - if the top element is rational, returns its numerator
@@ -90,7 +157,7 @@ Operations typically preserve exactness if possible, but any irrational operatio
  - `realpart` - if the top element is complex, return its real part
  - `imagpart` - if the top element is complex, return its imaginary part
 
-#### Logic Operations (where 0 is "false" and everything else is "true")
+### Logic Operations (where 0 is "false" and everything else is "true")
  - `not` - returns the bitwise not of the top two stack elements
  - `and` - returns the bitwise and of the top two stack elements
  - `or` - returns the bitwise or of the top two stack elements
@@ -113,31 +180,22 @@ Operations typically preserve exactness if possible, but any irrational operatio
  - `<=` - returns 1 if a <= b, where a and b are the top two stack elements, otherwise 0
  - `=` - returns 1 if a = b, where a and b are the top two stack elements, otherwise 0
 
-#### Constants (more to come)
+### Constants (more to come)
  - `pi`, `e`, `phi`, `i`
 
-#### Special Functions
+### Special Operations
  - `quit` - quits the calculator
- - `clear` - clears the stack
  - `undo` - tries to undo the last operation. You can undo any number of times.
  - `redo` - tries to redo the last undo. If you undo and then make a change to the stack, you can no longer "redo" back to the previous state.
+ - `clear` - clears the stack
  - `eval` - tries to execute the function associated with the symbol on the top of the stack
-
-## Defining your own functions
-You can define a new function to be a sequence of existing functions (or constants).
-Note that the builtin functions cannot be overriden.
-Simply enter in `(def <your-fn-name> <thing1> <thing2> ...)`.
-For example, we can define a function to calculate `x + 1/x` where `x` is the top stack element as follows: `(def foo dup inv +)`.
-Now, running `10 foo` will return `101/10`.
-
-## Advanced input strategies
-If you enter multiple tokens, they will all be processed sequentially.
-For example, typing `30 20 * <return>` will result in `600` (it's the same as doing `30 <return> 20 <return> * <return>`).
-
-You can push a symbol onto the stack by prepending it with a single quote.
-For example, entering `'gcd` will push `gcd` onto the stack instead of immediately evaluating it.
-To evaluate the top function on the stack, enter `eval`.
+ - `sto` - stores the top stack value into a global, unnamed register (without a pop)
+ - `rcl` - recalls the value stored in the global, unnamed register onto the stack
+ - `def` - creates a user-defined function (see above)
+ - `store` - stores the top stack element into a named variable (see above)
 
 ## Addendum
 
-Float precision makes me sad :(
+Float precision is annoying... `2 2 sqrt square =` returns `0` :(
+
+
