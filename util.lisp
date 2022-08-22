@@ -18,6 +18,11 @@
     #:->double
     #:bool->int
     #:make-keyword
+    #:falsy
+    #:truthy
+    #:alambda
+    #:aif
+    #:acond
     ))
 (in-package :rpncalc/util)
 
@@ -79,6 +84,12 @@
     (expt a b)
     (expt (->double a) (->double b))))
 
+(defun falsy (x)
+  (zerop x))
+
+(defun truthy (x)
+  (not (falsy x)))
+
 ;; taken from StackOverflow
 (defun make-keyword (name) (values (intern (string-upcase name) "KEYWORD")))
 
@@ -101,3 +112,20 @@
                 rest
                 :initial-value (apply fn1 args)))))
 
+(defmacro alambda (parms &body body)
+  `(labels ((self ,parms ,@body))
+     #'self))
+
+(defmacro aif (test-form then-form &optional else-form)
+  (let ((it (intern (string 'it))))
+    `(let ((,it ,test-form))
+       (if ,it ,then-form ,else-form))))
+
+;; modified
+(defmacro acond (&rest clauses)
+  (if (null clauses)
+    nil
+    (let ((cl1 (car clauses)))
+      `(aif ,(car cl1)
+           ,@(cdr cl1)
+           (acond ,@(cdr clauses))))))

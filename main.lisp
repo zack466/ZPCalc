@@ -8,6 +8,10 @@
 ;; environment :: symbol -> action
 (defvar *functions* (make-hash-table :test #'equal))
 (defvar *user-functions* (make-hash-table :test #'equal))
+(defvar *anonymous-functions* (make-hash-table))
+
+
+(defvar *reg* 0) ;; sto/rcl register
 
 ;; pi, e, phi, i
 ;; min/max fixnum, float epislon, etc
@@ -19,13 +23,14 @@
 
 (defun apply! (symbol)
   (lambda (s)
-    (let ((body (gethash (symbol-name symbol) *functions*)))
-      (let ((user-fn (gethash (symbol-name symbol) *user-functions*)))
-        (if (null body)
-          (if (null user-fn)
-            (error 'rpn-undefined-function :name symbol)
-            (funcall user-fn s))
-          (funcall body s))))))
+    (acond
+      ((gethash symbol *anonymous-functions*)
+       (funcall it s))
+      ((gethash (symbol-name symbol) *functions*)
+       (funcall it s))
+      ((gethash (symbol-name symbol) *user-functions*)
+       (funcall it s))
+      (t (error 'rpn-undefined-function :name symbol)))))
 
 (defun var-get! (keyword env)
   (lambda (s)
@@ -39,18 +44,16 @@
     (env-set env (make-keyword (symbol-name input)) value)
       (funcall (return!) s)))
 
-(defun eval! ()
+;; simply delays "produce-action"
+(defun eval! (env)
   (do! (top <- pop!)
-       (let action (cond
-                     ((symbolp top)
-                      (apply! top))
-                     ((listp top)
-                      (>>> (mapcar (produce-action *variables*) top)))
-                     (t (error 'rpn-cannot-eval :element top))))
+       (let action (funcall (produce-action env) top))
        action))
 
 (defun make-environment (&optional parent)
   (cons parent (make-hash-table)))
+
+(defvar *variables* (make-environment)) ;; lexical environment
 
 (defun env-set (env name value)
   (setf (gethash name (cdr env)) value))
@@ -63,10 +66,6 @@
         nil
         (env-get (car env) name)))))
 
-(defvar *variables* (make-environment))
-
-(defvar *reg* 0)
-
 (defun sto! ()
   (do! (top <- top!)
        (let x (setf *reg* top))
@@ -78,11 +77,13 @@
 ;; binds together actions using >>
 ;; can't use reduce bc >> is a macro...
 (defun >>> (actions)
-  (labels ((rec (acc rest)
-             (if (null rest)
-                 acc
-                 (rec (>> acc (car rest)) (cdr rest)))))
-    (rec (car actions) (cdr actions))))
+  (if (null actions)
+    (id!)
+    (labels ((rec (acc rest)
+                  (if (null rest)
+                    acc
+                    (rec (>> acc (car rest)) (cdr rest)))))
+      (rec (car actions) (cdr actions)))))
 
 (defun produce-action (env)
   (lambda (input)
@@ -93,25 +94,51 @@
       ;; variable
       ((keywordp input)
        (var-get! input env))
+      ;; eval
+      ((and (symbolp input)
+            (symbol= input 'eval))
+       (eval! env)) 
       ;; symbol
       ((symbolp input)
        (apply! input)) 
-      ;; quoted symbol
+      ;; quote - technically, this lets you push arbitrary Common Lisp objects
+      ;; onto the stack, even if they can't be evaluated, but I don't think
+      ;; that will be a problem
       ((and (listp input)
-            (eq (car input) 'quote)
-            (symbolp (cadr input)))
-       (push! (cadr input)))
-      ;; quoted list - when evaluated, everything gets pushed onto stack
-      ((and (listp input)
-            (eq (car input) 'quote)
-            (listp (cadr input)))
+            (eq (car input) 'quote))
        (push! (cadr input)))
       ;; store variable
+      ;; should this pop the variable?
       ((and (listp input)
             (symbol= (car input) 'store)
             (symbolp (cadr input)))
        (do! (x <- top!) (var-set! (cadr input) x env)))
-      ;; symbol/function
+      ;; (if (<condition>) (<then>) [(<else>)])
+      ((and (listp input)
+            (symbol= (car input) 'if))
+         (do! (let test (>>> (mapcar (produce-action env) (cadr input))))
+              (let then (>>> (mapcar (produce-action env) (caddr input))))
+              (let else (>>> (mapcar (produce-action env) (cadddr input))))
+              test
+              (condition <- pop!)
+              (if (truthy condition) then else)))
+      ;; (while (<condition>) (<body>))
+      ((and (listp input)
+            (symbol= (car input) 'while))
+       ;; define an anonymous function so while can refer to itself
+       (let* ((g (gensym))
+              (anonymous
+                (do! (let test (>>> (mapcar (produce-action env) (cadr input))))
+                     (let body (>>> (mapcar (produce-action env) (caddr input))))
+                     test
+                     (condition <- pop!)
+                     (if (truthy condition)
+                       (do! body (apply! g))
+                       (id!)))))
+         (setf (gethash g *anonymous-functions*) anonymous)
+         anonymous))
+
+      ;; define function or constant
       ((and (listp input)
             (symbol= (car input) 'def))
        (cond
@@ -133,8 +160,9 @@
                         ;; the body of the function
                         (mapcar (produce-action new-env) (cddr input)))))
               (return!))))))
-      (t (error 'rpn-unsupported-element :element input))
-      )))
+      ((and (listp input))
+       (>>> (mapcar (produce-action env) input)))
+      (t (error 'rpn-cannot-evaluate :element input)))))
 
 (defun apply-unary! (op)
   (do! (a <- pop!)
@@ -154,6 +182,8 @@
   (setf (gethash "//" *functions*) (apply-binary! (compose #'floor #'/))) ;; int division
   (setf (gethash "_" *functions*) (apply-unary! #'-))
   (setf (gethash "NEG" *functions*) (apply-unary! #'-))
+  (setf (gethash "INC" *functions*) (apply-unary! #'1+))
+  (setf (gethash "DEC" *functions*) (apply-unary! #'1-))
 
   ;; stack primitives
   (setf (gethash "DROP" *functions*) (drop!))
@@ -162,6 +192,8 @@
   (setf (gethash "DUP" *functions*) (dup!))
   (setf (gethash "ROT" *functions*) (do! (a <- pop!) (b <- pop!) (c <- pop!)
                                          (push! a) (push! c) (push! b)))
+  (setf (gethash "ROLL" *functions*) (roll!))
+  (setf (gethash "UNROLL" *functions*) (unroll!))
 
   ;; boolean operations
   (setf (gethash "NOT" *functions*) (apply-unary! #'lognot))
@@ -175,7 +207,7 @@
   (setf (gethash ">>" *functions*) (apply-binary! #'(lambda (integer count) (ash integer (- count)))))
 
   ;; conditonals - 0 is false, everything else is true (but 1 is preferred)
-  (setf (gethash "IF" *functions*) (do! (test <- pop!) (a <- pop!) (b <- pop!) (push! (if (not (zerop test)) a b))))
+  (setf (gethash "SWITCH" *functions*) (do! (test <- pop!) (a <- pop!) (b <- pop!) (push! (if (truthy test) a b))))
   (setf (gethash "ZEROP" *functions*) (apply-unary! (compose #'bool->int #'zerop)))
   (setf (gethash "ONEP" *functions*) (apply-unary! #'(lambda (x) (bool->int (zerop (1- x))))))
   (setf (gethash "PLUSP" *functions*) (apply-unary! (compose #'bool->int #'plusp)))
@@ -254,16 +286,17 @@
 
   ;; special functions
   (setf (gethash "CLEAR" *functions*) (set! nil))
-  (setf (gethash "EVAL" *functions*) (eval!))
   (setf (gethash "STO" *functions*) (sto!)) ;; store
   (setf (gethash "RCL" *functions*) (rcl!)) ;; recall
+  (setf (gethash "ID" *functions*) (id!)) ;; do nothing
+  (setf (gethash "ERROR" *functions*) (lambda (s) (declare (ignorable s)) (signal "oopsie")))
   )
 
 (defun print-stack (stack)
   (format t "~{-~*~}~%" (loop for i from 0 to 30 collect i))
   (mapcar #'(lambda (x)
               (typecase x
-                (fixnum (format t "~30:<~D~>~%" x))
+                (integer (format t "~30:<~D~>~%" x))
                 (complex (format t "~30:<~a + ~ai~>~%" (realpart x) (imagpart x)))
                 (number (format t "~30:<~a~>~%" x))
                 ;; (number (format t "~30:<~30,10E~>~%" x))
@@ -280,8 +313,9 @@
     (format t "~%")
     ret))
 
-;; TODO: add looping construct (woo turing completeness!)
-;; TODO: package/module construct?
+;; TODO: add vectors (can be used as general purpose lists?)
+;; TODO: ranges
+;; TODO: package/module construct
 ;; TODO: add read from file (and a command line interface)
 ;; TODO: more complex tui using ncurses/cl-charms (but try to avoid 100% cpu usage)
 (defun main ()
@@ -315,18 +349,31 @@
                 ;; Otherwise
                 (t (let ((action (funcall (produce-action *variables*) input)))
                      (let ((new-stack (run! stack action)))
-                       (push stack (car *history*))
-                       (setf (cdr *history*) nil)
-                       (setf stack new-stack)))))))
+                       ;; if stack is unchanged, don't record in history
+                       (unless (eq stack new-stack)
+                         (push stack (car *history*))
+                         (setf (cdr *history*) nil)
+                         (setf stack new-stack))))))))
           (rpn-cannot-undo () (format t "Error: Nothing to undo~%"))
           (rpn-cannot-redo () (format t "Error: Nothing to redo~%"))
           (rpn-stack-empty () (format t "Error: Not enough elements on stack~%"))
-          (rpn-unsupported-element (e) (format t "Unsupported element: ~S~%" (rpn-element e)))
-          (rpn-cannot-eval (e) (format t "Cannot evaluate element: ~S~%" (rpn-element e)))
+          (rpn-cannot-evaluate (e) (format t "Cannot evaluate element: ~S~%" (rpn-element e)))
+          (rpn-cannot-evaluate (e) (format t "Syntax error in element: ~S~%" (rpn-element e)))
           (rpn-undefined-function (e) (format t "Undefined function: ~S~%" (rpn-name e)))
           (rpn-undefined-variable (e) (format t "Undefined variable ~S~%" (rpn-name e)))
           (reader-error () (format t "Reader error: invalid element~%"))
           (type-error (e) (format t "Type Error: ~a~%" e))
           (end-of-file (e) (signal e)) ;; pass the condition 
+          ;; handle ctrl-c (interactive-interrupt)
+          ;; I know trivial-signals is an option, but I want to avoid dependencies (for now, at least)
+          (#+sbcl sb-sys:interactive-interrupt
+            #+ccl  ccl:interrupt-signal-condition
+            #+clisp system::simple-interrupt-condition
+            #+ecl ext:interactive-interrupt
+            #+allegro excl:interrupt-signal
+            ()
+            (format t "~%Received Console Interrupt. Quit with ctrl-d or 'quit'~%"))
           (error (e) (format t "Error: ~a~%" e))))
-      (end-of-file () nil))))
+      (end-of-file () nil)
+      ;; catch-all for unexcepted errors/conditions
+      (t (e) (format t "Unexpected error: ~S~%Quitting...~%" e)))))

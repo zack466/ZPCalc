@@ -14,19 +14,23 @@ It's a simple [RPN](https://en.wikipedia.org/wiki/Reverse_Polish_notation) calcu
 Type a number and then press enter to push it on to the stack.
 You can execute a function by typing its name.
 For example, if you have two numbers on the stack and you enter "+", you will get the sum of those two numbers.
-For a list of builtin functions, see below.
+The stack is displayed as a vertical list of numbers, but don't get confused - the bottom-most element is the "top" element of the stack.
+For a list of builtin functions, see [below](#builtins).
 Quit by entering `quit` or sending EOF with ctrl-d.
 
 Note: If you enter multiple tokens, they will all be processed sequentially.
 For example, typing `30 20 * <return>` will result in `600` (it's the same as doing `30 <return> 20 <return> * <return>`).
+If you want to group actions together, simply put them in parentheses.
+For example, entering `(30 20 *)` will return `600` without causing the stack to be printed 3 different times.
+This also registers it as a single action that can be undone using `undo` (instead of 3 different actions).
 
-## Builtin datatypes
+## Builtin types
 
-I'm piggybacking off of Common Lisp's datatypes: integer (aka bignum), rational (one bignum divided by another), double-precision float, and complex.
+I'm piggybacking off of Common Lisp's numeric types: integer (aka bignum), rational (one bignum divided by another), double-precision float, and complex.
 Operations typically preserve exactness if possible, but any irrational operations (such as `exp`, `sqrt`, and `sin`) will likely coerce the number into an inexact float.
 Also, note that symbols are not case-sensitive - they will be automatically uppercased (thanks Common Lisp!).
 
-## Defining your own functions/constants
+## Functions
 You can define new functions as a sequence of existing functions (or constants).
 Note that the builtin functions/constants cannot be overridden.
 Simply enter in `(def <your-fn-name> <body> ...)`.
@@ -37,11 +41,13 @@ Now, running `5 foo` will return `26/5`.
 ## Variables
 This calculator supports lexically-scoped variables.
 Variables are always prefixed with a colon (like `:x`, for example).
-You can store to top stack value into a variable by entering `(store <var-name>)`.
+You can store the topmost stack value into a variable by entering `(store <var-name>)`.
 Then, entering `:<var-name>` will put the value of the variable onto the stack.
+If you "store" a value as part of the body of a function, the variable will not be accessible outside of the function's scope.
 
 There is also a function `sto` which stores the top value of the stack into an unnamed global register.
 The value of this register can be returned using `rcl`.
+This register is useful for temporary values that you need to store but don't want to bother assigning to an actual variable.
 
 Variables are a key part of functions.
 You can declare a function with named arguments by entering `(def (<fn-name> <arg-name> ...) <body> ...)`.
@@ -57,17 +63,16 @@ For example, here is an implementation of a function for calculating the roots o
 )
 ```
 
-And also, yes, closures are possible (I don't know if this is good or bad).
+And also, yes, closures are possible (since functions establish a lexical scope).
 
 ```scheme
-(def (counter x) (def inc :x 1 + (store x)))
+(def (counter x) (def count :x 1 + (store x)))
 
 0 counter
 
-inc       ;; 1
-inc       ;; 2
-inc       ;; 3
-inc       ;; 4
+count     ;; 1
+count     ;; 2
+count     ;; 3
 ```
 
 ## Quoting
@@ -89,13 +94,88 @@ As an example, consider the function `bi`, which takes one value and applies two
 
 Now, entering `10 '(2 *) '(2 +) bi` will result in `20` and `12` being on top of the stack.
 
-## Builtin functions
+## Conditionals
+
+A basic conditional construct is the function `switch`, which takes three arguments.
+If its third argument is "true", then it will evaluate to the second argument, otherwise the first.
+
+For example:
+```scheme
+10 20 2 3 < switch  ;; evaluates to 20
+
+10 20 false switch  ;; evaluates to 10
+```
+
+This works fine in certain circumstances, but it can be unwieldy to use.
+Another option is to the `if` construct.
+It takes three lists of instructions.
+It will evaluate the first set of actions, check if the topmost element of the stack is true or false (which will be popped from the stack), then decide whether to run the *then* clause or the *else* clause.
+Note that the *else* clause is optional.
+
+```scheme
+;; (if (<condition>) (<then>) [(<else>)])
+
+123 (if (1 2 <) (2 *) (3 *)) ;; 246
+
+(def (my-abs x)
+  :x (if (dup minusp) (neg))
+)
+
+-30 my-abs ;; 30
+20 my-abs  ;; 20
+```
+
+## Looping
+
+By combining logic operators, quotation, and evaluation, you can express recursive functions and therefore looping.
+This requires passing a function into itself, which is an idea borrowed from the [y combinator](https://en.wikipedia.org/wiki/Fixed-point_combinator).
+
+```scheme
+;; recursive factorial implementation
+(def (fact self x acc)
+  ;; recurse
+  '(:self :acc :x * :x 1 - swap :self eval) 
+  ;; return
+  ':acc 
+  ;; choose whether to recurse or return
+  :x zerop switch eval 
+)
+
+'fact 10 1 fact ;; 3628800
+```
+
+However, this is extremely tedious to use.
+You should probably use the `while` construct instead, which is very similar to `if`.
+
+```scheme
+;; (while (<condition>) (<body>))
+
+(def (factorial x)
+  ;; init loop counter
+  :x sto drop 
+  ;; initial value/accumulator
+  1 
+  (while
+    ;; while x is positive
+    (rcl plusp) 
+    ;; update accumulator
+    (rcl *
+    ;; decrement loop counter
+    rcl dec sto drop))
+)
+```
+
+Do note that `while` uses recursion internally, so extreme looping may cause the stack to overflow depending on the Common Lisp implementation being used (ECL being the main culprit).
+
+## Builtins
 
 ### Stack Manipulation
 - `drop` (or `pop`) - removes the top element of the stack
 - `dup` - duplicates the top element of the stack
 - `swap` - swaps the top two stack elements
 - `rot` - rotates the top 3 elements
+- `roll` - rotates the entire stack (the top element becomes the bottom)
+- `unroll` - does the opposite of roll (the bottom element becomes the top)
 
 ### Basic Numeric Operations
 - `+` - adds the top two numbers on the stack
@@ -104,6 +184,8 @@ Now, entering `10 '(2 *) '(2 +) bi` will result in `20` and `12` being on top of
 - `/` - divides the top two numbers on the stack
 - `//` - divides the top two numbers on the stack, truncating the result into an integer (aka integer division)
 - `_` (or `neg`) - negates the top element of the stack
+- `inc` - adds 1 to the topmost stack element
+- `dec` - subtracts 1 from the topmost stack element
 - `inv` - replaces the top element of the stack with its reciprocal
 
 ### Additional Numeric Operations
@@ -167,7 +249,7 @@ Now, entering `10 '(2 *) '(2 +) bi` will result in `20` and `12` being on top of
  - `bit` - returns the nth bit of an integer x, where x and n are the two top stack elements
  - `<<` - returns the bitwise left shift a << b, where a and b are the top two stack elements
  - `>>` - returns the bitwise right shift a >> b, where a and b are the top two stack elements
- - `if` - if the top element is true, then the second top element, otherwise the third
+ - `switch` - if the top element is true, then the second top element, otherwise the third
  - `zerop` - returns 1 if the top element is 0, otherwise 0
  - `onep` - returns 1 if the top element is 1, otherwise 0
  - `plusp` - returns 1 if the top element is positive, otherwise 0
@@ -181,21 +263,21 @@ Now, entering `10 '(2 *) '(2 +) bi` will result in `20` and `12` being on top of
  - `=` - returns 1 if a = b, where a and b are the top two stack elements, otherwise 0
 
 ### Constants (more to come)
- - `pi`, `e`, `phi`, `i`
+ - `pi`, `e`, `phi`, `i`, `true`, `false`
 
 ### Special Operations
  - `quit` - quits the calculator
  - `undo` - tries to undo the last operation. You can undo any number of times.
  - `redo` - tries to redo the last undo. If you undo and then make a change to the stack, you can no longer "redo" back to the previous state.
  - `clear` - clears the stack
- - `eval` - tries to execute the function associated with the symbol on the top of the stack
+ - `eval` - tries to "execute" the topmost value on the stack (see [Quoting](#quoting)).
  - `sto` - stores the top stack value into a global, unnamed register (without a pop)
  - `rcl` - recalls the value stored in the global, unnamed register onto the stack
- - `def` - creates a user-defined function (see above)
- - `store` - stores the top stack element into a named variable (see above)
+ - `def` - creates a user-defined function (see [Functions](#functions))
+ - `store` - stores the top stack element into a named variable without popping it (see [Variables](#variables))
+ - `if` - a conditional construct that allows for branched execution (see [Conditionals](#conditionals))
+ - `while` - a construct that allows for looping (see [Looping](#looping))
 
 ## Addendum
 
 Float precision is annoying... `2 2 sqrt square =` returns `0` :(
-
-

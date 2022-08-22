@@ -15,6 +15,8 @@
     #:pop!
     #:drop!
     #:dup!
+    #:roll!
+    #:unroll!
     #:id!
     #:do!))
 (in-package :rpncalc/state)
@@ -95,19 +97,39 @@
   (with-gensyms (s)
     `(lambda (,s) (if (null ,s) (error 'rpn-stack-empty) (cons nil (cons (car ,s) ,s))))))
 
+(defun roll! ()
+  (lambda (s)
+    (if (null s)
+      s
+      (let* ((top (car s))
+             (rest (cdr s))
+             (rolled (append rest (list top))))
+        (cons nil rolled)))))
+
+(defun unroll! ()
+  (lambda (s)
+    (if (null s)
+      s
+      (let* ((top (butlast s))
+             (last (last s))
+             (unrolled (append last top)))
+        (cons nil unrolled)))))
+
 (defmacro do! (&rest lines)
   (do!% lines))
 
 (defun do!% (lines)
   (if (= 1 (length lines))
-      (car lines)
-      (let ((line (car lines)))
-        (cond
-          ((and (< 2 (length line))
-                (symbol= '<- (cadr line)))
-           `(>>= ,(cddr line) (lambda (,(car line))
-                                ,(do!% (cdr lines)))))
-          ((symbol= 'let (car line))
-           `(let ((,(cadr line) ,(caddr line)))
-              ,(do!% (cdr lines))))
-          (t `(>> ,line ,(do!% (cdr lines))))))))
+    (car lines)
+    (let ((line (car lines)))
+      (cond
+        ((and (listp line)
+              (< 2 (length line))
+              (symbol= '<- (cadr line)))
+         `(>>= ,(cddr line) (lambda (,(car line))
+                              ,(do!% (cdr lines)))))
+        ((and (listp line)
+              (symbol= 'let (car line)))
+         `(let ((,(cadr line) ,(caddr line)))
+            ,(do!% (cdr lines))))
+        (t `(>> ,line ,(do!% (cdr lines))))))))
