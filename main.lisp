@@ -10,7 +10,6 @@
 ;; environment :: symbol -> action
 (defvar *functions* (make-hash-table :test #'equal))
 (defvar *user-functions* (make-hash-table :test #'equal))
-(defvar *anonymous-functions* (make-hash-table))
 
 ;; pi, e, phi, i
 ;; min/max fixnum, float epislon, etc
@@ -23,14 +22,12 @@
 (defmacro apply! (symbol)
   (with-gensyms (s)
     `(lambda (,s)
-      (acond
-        ((gethash ,symbol *anonymous-functions*)
-         (funcall it ,s))
-        ((gethash (symbol-name ,symbol) *functions*)
-         (funcall it ,s))
-        ((gethash (symbol-name ,symbol) *user-functions*)
-         (funcall it ,s))
-        (t (error 'rpn-undefined-function :name ,symbol))))))
+       (acond
+         ((gethash (symbol-name ,symbol) *functions*)
+          (funcall it ,s))
+         ((gethash (symbol-name ,symbol) *user-functions*)
+          (funcall it ,s))
+         (t (error 'rpn-undefined-function :name ,symbol))))))
 
 (defmacro var-get! (keyword env)
   (with-gensyms (s lookup)
@@ -49,7 +46,7 @@
 ;; simply delays "produce-action"
 (defun eval! (env)
   (do! (top <- pop!)
-       (let action (funcall (produce-action env) top))
+       (let action (produce-action top env))
        action))
 
 (defun make-environment (&optional parent)
@@ -78,6 +75,19 @@
 (defun rcl! ()
   (push! *reg*))
 
+(defmacro while! (test-action body-action)
+  (with-gensyms (s s% s%% s%%% result top)
+    `(lambda (,s)
+       (loop
+         (let ((,s% (cdr (funcall ,test-action ,s))))
+           (let* ((,result (funcall (pop!) ,s%))
+                  (,top (car ,result))
+                  (,s%% (cdr ,result)))
+             (if (truthy ,top)
+               (let ((,s%%% (cdr (funcall ,body-action ,s%%))))
+                 (setf ,s ,s%%%))
+               (return (cons nil ,s%%)))))))))
+
 ;; binds together actions using >>
 ;; can't use reduce bc >> is a macro...
 (defun >>> (actions)
@@ -89,84 +99,74 @@
                     (rec (>> acc (car rest)) (cdr rest)))))
       (rec (car actions) (cdr actions)))))
 
-(defun produce-action (env)
-  (lambda (input)
-    (cond
-      ;; number
-      ((numberp input)
-       (push! input))
-      ;; variable
-      ((keywordp input)
-       (var-get! input env))
-      ;; eval
-      ((and (symbolp input)
-            (symbol= input 'eval))
-       (eval! env)) 
-      ;; symbol
-      ((symbolp input)
-       (apply! input)) 
-      ;; quote - technically, this lets you push arbitrary Common Lisp objects
-      ;; onto the stack, even if they can't be evaluated, but I don't think
-      ;; that will be a problem
-      ((and (listp input)
-            (eq (car input) 'quote))
-       (push! (cadr input)))
-      ;; store variable
-      ;; should this pop the variable?
-      ((and (listp input)
-            (symbol= (car input) 'store)
-            (symbolp (cadr input)))
-       (do! (x <- top!) (var-set! (cadr input) x env)))
-      ;; (if (<condition>) (<then>) [(<else>)])
-      ((and (listp input)
-            (symbol= (car input) 'if))
-         (do! (let test (>>> (mapcar (produce-action env) (cadr input))))
-              (let then (>>> (mapcar (produce-action env) (caddr input))))
-              (let else (>>> (mapcar (produce-action env) (cadddr input))))
-              test
-              (condition <- pop!)
-              (if (truthy condition) then else)))
-      ;; (while (<condition>) (<body>))
-      ((and (listp input)
-            (symbol= (car input) 'while))
-       ;; define an anonymous function so while can refer to itself
-       (let* ((g (gensym))
-              (anonymous
-                (do! (let test (>>> (mapcar (produce-action env) (cadr input))))
-                     (let body (>>> (mapcar (produce-action env) (caddr input))))
-                     test
-                     (condition <- pop!)
-                     (if (truthy condition)
-                       (do! body (apply! g))
-                       (id!)))))
-         (setf (gethash g *anonymous-functions*) anonymous)
-         anonymous))
+(defun produce-action (input env)
+  (cond
+    ;; number
+    ((numberp input)
+     (push! input))
+    ;; variable
+    ((keywordp input)
+     (var-get! input env))
+    ;; eval
+    ((and (symbolp input)
+          (symbol= input 'eval))
+     (eval! env)) 
+    ;; symbol
+    ((symbolp input)
+     (apply! input)) 
+    ;; quote - technically, this lets you push arbitrary Common Lisp objects
+    ;; onto the stack, even if they can't be evaluated, but I don't think
+    ;; that will be a problem
+    ((and (listp input)
+          (eq (car input) 'quote))
+     (push! (cadr input)))
+    ;; store variable
+    ;; should this pop the variable?
+    ((and (listp input)
+          (symbol= (car input) 'store)
+          (symbolp (cadr input)))
+     (do! (x <- top!) (var-set! (cadr input) x env)))
+    ;; (if (<condition>) (<then>) [(<else>)])
+    ((and (listp input)
+          (symbol= (car input) 'if))
+     (do! (let test (>>> (mapcar #'(lambda (i) (produce-action i env)) (cadr input))))
+          (let then (>>> (mapcar #'(lambda (i) (produce-action i env)) (caddr input))))
+          (let else (>>> (mapcar #'(lambda (i) (produce-action i env)) (cadddr input))))
+          test
+          (condition <- pop!)
+          (if (truthy condition) then else)))
+    ;; (while (<condition>) (<body>))
+    ((and (listp input)
+          (symbol= (car input) 'while))
+     (let ((test (>>> (mapcar #'(lambda (i) (produce-action i env)) (cadr input))))
+           (body (>>> (mapcar #'(lambda (i) (produce-action i env)) (caddr input)))))
+       (while! test body)))
 
-      ;; define function or constant
-      ((and (listp input)
-            (symbol= (car input) 'def))
-       (cond
-         ;; symbol function - simply gets expanded
-         ((symbolp (cadr input))
-          (setf (gethash (symbol-name (cadr input)) *user-functions*)
-                (>>> (mapcar (produce-action env) (cddr input))))
-          (return!))
-         ;; function function - makes arguments available as lexical variables
-         ((listp (cadr input))
-          (destructuring-bind (fn-name &rest args)
-            (cadr input)
-            (let ((new-env (make-environment env)))
-              (setf (gethash (symbol-name fn-name) *user-functions*)
-                    (>>>
-                      (append
-                        ;; pop arguments off the stack, store them into variables
-                        (mapcar #'(lambda (var) (do! (x <- pop!) (var-set! var x new-env))) (reverse args))
-                        ;; the body of the function
-                        (mapcar (produce-action new-env) (cddr input)))))
-              (return!))))))
-      ((and (listp input))
-       (>>> (mapcar (produce-action env) input)))
-      (t (error 'rpn-cannot-evaluate :element input)))))
+    ;; define function or constant
+    ((and (listp input)
+          (symbol= (car input) 'def))
+     (cond
+       ;; symbol function - simply gets expanded
+       ((symbolp (cadr input))
+        (setf (gethash (symbol-name (cadr input)) *user-functions*)
+              (>>> (mapcar #'(lambda (i) (produce-action i env)) (cddr input))))
+        (return!))
+       ;; function function - makes arguments available as lexical variables
+       ((listp (cadr input))
+        (destructuring-bind (fn-name &rest args)
+          (cadr input)
+          (let ((new-env (make-environment env)))
+            (setf (gethash (symbol-name fn-name) *user-functions*)
+                  (>>>
+                    (append
+                      ;; pop arguments off the stack, store them into variables
+                      (mapcar #'(lambda (var) (do! (x <- pop!) (var-set! var x new-env))) (reverse args))
+                      ;; the body of the function
+                      (mapcar #'(lambda (i) (produce-action i new-env)) (cddr input)))))
+            (return!))))))
+    ((and (listp input))
+     (>>> (mapcar #'(lambda (i) (produce-action i env)) input)))
+    (t (error 'rpn-cannot-evaluate :element input))))
 
 (defun apply-unary! (op)
   (do! (a <- pop!)
@@ -355,7 +355,7 @@
                  (push stack (car *history*))
                  (setf stack (pop (cdr *history*))))
                 ;; Otherwise
-                (t (let ((action (funcall (produce-action *variables*) input)))
+                (t (let ((action (produce-action input *variables*)))
                      (let ((new-stack (run! stack action)))
                        ;; if stack is unchanged, don't record in history
                        (unless (eq stack new-stack)

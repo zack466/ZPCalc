@@ -165,8 +165,6 @@ You should probably use the `while` construct instead, which is very similar to 
 )
 ```
 
-Do note that `while` uses recursion internally, so extreme looping may cause the stack to overflow depending on the Common Lisp implementation being used (ECL being the main culprit).
-
 ## Builtins
 
 ### Stack Manipulation
