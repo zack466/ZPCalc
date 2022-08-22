@@ -17,5 +17,4 @@ test:
 	sbcl --eval '(asdf:test-system :rpncalc)' \
 		--eval '(quit)'
 
-build:
-	ecl --eval '(require :asdf)'
+build: rpncalc

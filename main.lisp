@@ -10,9 +10,6 @@
 (defvar *user-functions* (make-hash-table :test #'equal))
 (defvar *anonymous-functions* (make-hash-table))
 
-
-(defvar *reg* 0) ;; sto/rcl register
-
 ;; pi, e, phi, i
 ;; min/max fixnum, float epislon, etc
 ;; plus variations like 2pi, pi2, pi3, 2pi3, etc
@@ -65,6 +62,8 @@
       (if (null (car env))
         nil
         (env-get (car env) name)))))
+
+(defvar *reg* 0) ;; sto/rcl register
 
 (defun sto! ()
   (do! (top <- top!)
@@ -376,4 +375,4 @@
           (error (e) (format t "Error: ~a~%" e))))
       (end-of-file () nil)
       ;; catch-all for unexcepted errors/conditions
-      (t (e) (format t "Unexpected error: ~S~%Quitting...~%" e)))))
+      (t (e) (format t "Unexpected error: ~a~%Quitting...~%" e)))))
