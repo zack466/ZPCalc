@@ -5,6 +5,8 @@
   (:export #:main))
 (in-package :rpncalc)
 
+;; need to package up all special variables into some sort of big state variable
+
 ;; environment :: symbol -> action
 (defvar *functions* (make-hash-table :test #'equal))
 (defvar *user-functions* (make-hash-table :test #'equal))
@@ -18,28 +20,31 @@
 ;; cannot undo function definitions, only state of the stack
 (defvar *history* (cons nil nil))
 
-(defun apply! (symbol)
-  (lambda (s)
-    (acond
-      ((gethash symbol *anonymous-functions*)
-       (funcall it s))
-      ((gethash (symbol-name symbol) *functions*)
-       (funcall it s))
-      ((gethash (symbol-name symbol) *user-functions*)
-       (funcall it s))
-      (t (error 'rpn-undefined-function :name symbol)))))
+(defmacro apply! (symbol)
+  (with-gensyms (s)
+    `(lambda (,s)
+      (acond
+        ((gethash ,symbol *anonymous-functions*)
+         (funcall it ,s))
+        ((gethash (symbol-name ,symbol) *functions*)
+         (funcall it ,s))
+        ((gethash (symbol-name ,symbol) *user-functions*)
+         (funcall it ,s))
+        (t (error 'rpn-undefined-function :name ,symbol))))))
 
-(defun var-get! (keyword env)
-  (lambda (s)
-    (let ((lookup (env-get env keyword)))
-      (if lookup
-        (funcall (push! lookup) s)
-        (error 'rpn-undefined-variable :name keyword)))))
+(defmacro var-get! (keyword env)
+  (with-gensyms (s lookup)
+    `(lambda (,s)
+      (let ((,lookup (env-get ,env ,keyword)))
+        (if ,lookup
+          (funcall (push! ,lookup) ,s)
+          (error 'rpn-undefined-variable :name ,keyword))))))
 
-(defun var-set! (input value env)
-  (lambda (s)
-    (env-set env (make-keyword (symbol-name input)) value)
-      (funcall (return!) s)))
+(defmacro var-set! (input value env)
+  (with-gensyms (s)
+    `(lambda (,s)
+       (env-set ,env (make-keyword (symbol-name ,input)) ,value)
+       (funcall (return!) ,s))))
 
 ;; simply delays "produce-action"
 (defun eval! (env)
@@ -255,7 +260,7 @@
   (setf (gethash "ASIN" *functions*) (apply-unary! (compose #'asin #'->double)))
   (setf (gethash "ACOS" *functions*) (apply-unary! (compose #'acos #'->double)))
   (setf (gethash "ATAN" *functions*) (apply-unary! (compose #'atan #'->double)))
-  (setf (gethash "ATAN2" *functions*) (apply-binary! (compose #'atan #'->double)))
+  (setf (gethash "ATAN2" *functions*) (apply-binary! (lambda (a b) (atan (->double a) (->double b)))))
   (setf (gethash "CIS" *functions*) (apply-unary! (compose #'cis #'->double)))
   (setf (gethash "SINH" *functions*) (apply-unary! (compose #'sinh #'->double)))
   (setf (gethash "COSH" *functions*) (apply-unary! (compose #'cosh #'->double)))
@@ -313,10 +318,14 @@
     ret))
 
 ;; TODO: add vectors (can be used as general purpose lists?)
+;; TODO: symbolic computation?
+;; TODO: add basic structs/objects?
 ;; TODO: ranges
 ;; TODO: package/module construct
 ;; TODO: add read from file (and a command line interface)
-;; TODO: more complex tui using ncurses/cl-charms (but try to avoid 100% cpu usage)
+;; TODO: more complex tui using ncurses/cl-charms (or maybe croaton)
+;; TODO: graphing
+;; TODO: refactor main so it can be easily tested 
 (defun main ()
   (let ((stack nil)
         (*read-default-float-format* 'double-float)
@@ -363,7 +372,7 @@
           (reader-error () (format t "Reader error: invalid element~%"))
           (type-error (e) (format t "Type Error: ~a~%" e))
           (end-of-file (e) (signal e)) ;; pass the condition 
-          ;; handle ctrl-c (interactive-interrupt)
+          ;; handle ctrl-c aka sigint (interactive-interrupt)
           ;; I know trivial-signals is an option, but I want to avoid dependencies (for now, at least)
           (#+sbcl sb-sys:interactive-interrupt
             #+ccl  ccl:interrupt-signal-condition

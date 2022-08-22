@@ -97,23 +97,23 @@
   (with-gensyms (s)
     `(lambda (,s) (if (null ,s) (error 'rpn-stack-empty) (cons nil (cons (car ,s) ,s))))))
 
-(defun roll! ()
-  (lambda (s)
-    (if (null s)
-      s
-      (let* ((top (car s))
-             (rest (cdr s))
-             (rolled (append rest (list top))))
-        (cons nil rolled)))))
+(defmacro roll! ()
+  (with-gensyms (s top rest)
+    `(lambda (,s)
+       (if (null ,s)
+         ,s
+         (let* ((,top (car ,s))
+                (,rest (cdr ,s)))
+           (cons nil (append ,rest (list ,top))))))))
 
-(defun unroll! ()
-  (lambda (s)
-    (if (null s)
-      s
-      (let* ((top (butlast s))
-             (last (last s))
-             (unrolled (append last top)))
-        (cons nil unrolled)))))
+(defmacro unroll! ()
+  (with-gensyms (s top last)
+    `(lambda (,s)
+       (if (null ,s)
+         ,s
+         (let* ((,top (butlast ,s))
+                (,last (last ,s)))
+           (cons nil (append ,last ,top)))))))
 
 (defmacro do! (&rest lines)
   (do!% lines))
