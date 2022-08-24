@@ -1,23 +1,98 @@
 (in-package :cl-user)
 
 (defpackage rpncalc
-  (:use :cl :rpncalc/util :rpncalc/state :rpncalc/conditions)
+  (:use
+    :cl
+    :rpncalc/util
+    :rpncalc/state
+    :rpncalc/conditions
+    :rpncalc/env
+    :rpncalc/history)
   (:export #:main))
 (in-package :rpncalc)
 
-;; need to package up all special variables into some sort of big state variable
+;; need to package up all special variables into some sort of state object
+
+;; Builtin Functions are the only "actually global" variable
+
+;; State:
+;;   fields:
+;;    - topmost variable environment
+;;    - user-defined functions
+;;    - history
+;;    - sto/rcl register
+;;   methods:
+;;    - run-stack (runs action on inner stack, may raise an error)
+;;    - interact (takes a Lisp object as input, may raise an error)
+;;    - some getters for the inner state
+;;    - print-stack
+
+(defvar *state* nil)
+
+;; an instance of an RPN calculator/stack
+(defclass RPN ()
+  ;; Inner stack data
+  ((stack
+     :initarg stack
+     :initform nil
+     :accessor rpn-stack
+     :type list)
+   ;; Top-level lexical environment
+   (env
+     :initarg env
+     :initform (make-env)
+     :accessor rpn-env)
+   ;; User-defined functions
+   (functions
+     :initarg functions
+     :initform (make-hash-table :test #'equal)
+     :accessor rpn-functions)
+   ;; History of stack data
+   (history
+     :initarg history
+     :initform (make-history)
+     :accessor rpn-history)
+   ;; unnamed register
+   (reg
+     :initarg reg
+     :initform 0
+     :accessor rpn-reg)))
+
+(defmethod rpn-undo ((state RPN))
+  (let ((new-stack (undo (rpn-stack state) (rpn-history state))))
+    (setf (rpn-stack state) new-stack)))
+
+(defmethod rpn-redo ((state RPN))
+  (let ((new-stack (redo (rpn-stack state) (rpn-history state))))
+    (setf (rpn-stack state) new-stack)))
+
+(defmethod rpn-interact ((state RPN) input)
+  (let ((*state* state))
+    (cond
+      ;; Quit
+      ((symbol= input 'quit)
+       (signal 'rpn-quit))
+      ;; Undo
+      ((symbol= input 'undo)
+       (rpn-undo state))
+      ;; Redo
+      ((symbol= input 'redo)
+       (rpn-redo state))
+      ;; Otherwise
+      (t (let ((action (produce-action input (rpn-env state)))
+               (stack (rpn-stack state)))
+           (let ((new-stack (run! stack action)))
+             ;; if stack is unchanged, don't record in history
+             (unless (eq stack new-stack)
+               (record stack (rpn-history state))
+               (setf (rpn-stack state) new-stack))))))))
 
 ;; environment :: symbol -> action
 (defvar *functions* (make-hash-table :test #'equal))
-(defvar *user-functions* (make-hash-table :test #'equal))
 
 ;; pi, e, phi, i
 ;; min/max fixnum, float epislon, etc
 ;; plus variations like 2pi, pi2, pi3, 2pi3, etc
-
-;; is a Zipper - car contains undo history, cdr contains redo
-;; cannot undo function definitions, only state of the stack
-(defvar *history* (cons nil nil))
 
 (defmacro apply! (symbol)
   (with-gensyms (s)
@@ -25,14 +100,14 @@
        (acond
          ((gethash (symbol-name ,symbol) *functions*)
           (funcall it ,s))
-         ((gethash (symbol-name ,symbol) *user-functions*)
+         ((gethash (symbol-name ,symbol) (rpn-functions *state*))
           (funcall it ,s))
          (t (error 'rpn-undefined-function :name ,symbol))))))
 
 (defmacro var-get! (keyword env)
   (with-gensyms (s lookup)
     `(lambda (,s)
-      (let ((,lookup (env-get ,env ,keyword)))
+      (let ((,lookup (get-env ,keyword ,env)))
         (if ,lookup
           (funcall (push! ,lookup) ,s)
           (error 'rpn-undefined-variable :name ,keyword))))))
@@ -40,7 +115,7 @@
 (defmacro var-set! (input value env)
   (with-gensyms (s)
     `(lambda (,s)
-       (env-set ,env (make-keyword (symbol-name ,input)) ,value)
+       (setf (get-env (make-keyword (symbol-name ,input)) ,env) ,value)
        (funcall (return!) ,s))))
 
 ;; simply delays "produce-action"
@@ -48,24 +123,6 @@
   (do! (top <- pop!)
        (let action (produce-action top env))
        action))
-
-(defun make-environment (&optional parent)
-  (cons parent (make-hash-table)))
-
-(defvar *variables* (make-environment)) ;; lexical environment
-
-(defun env-set (env name value)
-  (setf (gethash name (cdr env)) value))
-
-(defun env-get (env name)
-  (let ((result (gethash name (cdr env))))
-    (if result
-      result
-      (if (null (car env))
-        nil
-        (env-get (car env) name)))))
-
-(defvar *reg* 0) ;; sto/rcl register
 
 (defun sto! ()
   (do! (top <- top!)
@@ -92,7 +149,7 @@
 ;; can't use reduce bc >> is a macro...
 (defun >>> (actions)
   (if (null actions)
-    (id!)
+    (return!)
     (labels ((rec (acc rest)
                   (if (null rest)
                     acc
@@ -148,15 +205,15 @@
      (cond
        ;; symbol function - simply gets expanded
        ((symbolp (cadr input))
-        (setf (gethash (symbol-name (cadr input)) *user-functions*)
+        (setf (gethash (symbol-name (cadr input)) (rpn-functions *state*))
               (>>> (mapcar #'(lambda (i) (produce-action i env)) (cddr input))))
         (return!))
        ;; function function - makes arguments available as lexical variables
        ((listp (cadr input))
         (destructuring-bind (fn-name &rest args)
           (cadr input)
-          (let ((new-env (make-environment env)))
-            (setf (gethash (symbol-name fn-name) *user-functions*)
+          (let ((new-env (make-env env)))
+            (setf (gethash (symbol-name fn-name) (rpn-functions *state*))
                   (>>>
                     (append
                       ;; pop arguments off the stack, store them into variables
@@ -292,7 +349,7 @@
   (setf (gethash "CLEAR" *functions*) (set! nil))
   (setf (gethash "STO" *functions*) (sto!)) ;; store
   (setf (gethash "RCL" *functions*) (rcl!)) ;; recall
-  (setf (gethash "ID" *functions*) (id!)) ;; do nothing
+  (setf (gethash "ID" *functions*) (return!)) ;; do nothing
   (setf (gethash "ERROR" *functions*) (lambda (s) (declare (ignorable s)) (signal "oopsie")))
   )
 
@@ -327,41 +384,20 @@
 ;; TODO: graphing
 ;; TODO: refactor main so it can be easily tested 
 (defun main ()
-  (let ((stack nil)
+  (let ((*state* (make-instance 'RPN))
         (*read-default-float-format* 'double-float)
         ;; safe io (hopefully)
         (*read-eval* nil)
         (*print-readably* nil))
     (init-builtin-functions)
+
     (handler-case
       (loop
         (handler-case
           (progn
-            (print-stack stack)
+            (print-stack (rpn-stack *state*))
              (let ((input (read-prompt "> ")))
-              (cond
-                ((symbol= input 'quit)
-                 (return))
-                ;; UNDO
-                ((symbol= input 'undo)
-                 (when (null (car *history*))
-                   (error 'rpn-cannot-undo))
-                 (push stack (cdr *history*))
-                 (setf stack (pop (car *history*))))
-                ;; REDO
-                ((symbol= input 'redo)
-                 (when (null (cdr *history*))
-                   (error 'rpn-cannot-redo))
-                 (push stack (car *history*))
-                 (setf stack (pop (cdr *history*))))
-                ;; Otherwise
-                (t (let ((action (produce-action input *variables*)))
-                     (let ((new-stack (run! stack action)))
-                       ;; if stack is unchanged, don't record in history
-                       (unless (eq stack new-stack)
-                         (push stack (car *history*))
-                         (setf (cdr *history*) nil)
-                         (setf stack new-stack))))))))
+               (rpn-interact *state* input)))
           (rpn-cannot-undo () (format t "Error: Nothing to undo~%"))
           (rpn-cannot-redo () (format t "Error: Nothing to redo~%"))
           (rpn-stack-empty () (format t "Error: Not enough elements on stack~%"))
@@ -370,7 +406,6 @@
           (rpn-undefined-function (e) (format t "Undefined function: ~S~%" (rpn-name e)))
           (rpn-undefined-variable (e) (format t "Undefined variable ~S~%" (rpn-name e)))
           (reader-error () (format t "Reader error: invalid element~%"))
-          (type-error (e) (format t "Type Error: ~a~%" e))
           (end-of-file (e) (signal e)) ;; pass the condition 
           ;; handle ctrl-c aka sigint (interactive-interrupt)
           ;; I know trivial-signals is an option, but I want to avoid dependencies (for now, at least)
@@ -381,7 +416,9 @@
             #+allegro excl:interrupt-signal
             ()
             (format t "~%Received Console Interrupt. Quit with ctrl-d or 'quit'~%"))
-          (error (e) (format t "Error: ~a~%" e))))
+          (error (e) (format t "Error: ~a~%" e))
+          ))
       (end-of-file () nil)
       ;; catch-all for unexcepted errors/conditions
-      (t (e) (format t "Unexpected error: ~a~%Quitting...~%" e)))))
+      (t (e) (format t "Unexpected error: ~a~%Quitting...~%" e))
+      )))

@@ -10,6 +10,7 @@
     #:rpn-cannot-redo
     #:rpn-cannot-evaluate
     #:rpn-syntax-error
+    #:rpn-quit
     ))
 (in-package :rpncalc/conditions)
 
@@ -30,3 +31,4 @@
 (define-condition rpn-syntax-error (error)
   ((element :initarg :element :initform nil :reader rpn-element)))
 
+(define-condition rpn-quit (simple-condition) ())

@@ -3,10 +3,13 @@
   :author ""
   :license ""
   :depends-on ()
+  :serial t
   :components ((:file "util")
                (:file "conditions")
-               (:file "state" :depends-on ("util" "conditions"))
-               (:file "main" :depends-on ("util" "state" "conditions")))
+               (:file "history")
+               (:file "env")
+               (:file "state")
+               (:file "main"))
   :description ""
   :build-operation "program-op"
   :build-pathname "rpncalc"

@@ -50,11 +50,6 @@
     `(let ((,result (funcall ,action ,initial-state)))
        (values (cdr ,result) (car ,result)))))
 
-;; identity - does nothing
-(defmacro id! ()
-  (with-gensyms (s)
-    `(lambda (,s) (declare (ignorable ,s)) (cons nil ,s))))
-
 ;; set return value to state, keep state the same
 (defmacro get! ()
   (with-gensyms (s)

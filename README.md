@@ -263,18 +263,22 @@ You should probably use the `while` construct instead, which is very similar to 
 ### Constants (more to come)
  - `pi`, `e`, `phi`, `i`, `true`, `false`
 
-### Special Operations
- - `quit` - quits the calculator
- - `undo` - tries to undo the last operation. You can undo any number of times.
- - `redo` - tries to redo the last undo. If you undo and then make a change to the stack, you can no longer "redo" back to the previous state.
+### Misc Functions
  - `clear` - clears the stack
  - `eval` - tries to "execute" the topmost value on the stack (see [Quoting](#quoting)).
  - `sto` - stores the top stack value into a global, unnamed register (without a pop)
  - `rcl` - recalls the value stored in the global, unnamed register onto the stack
+
+### Special Constructs
  - `def` - creates a user-defined function (see [Functions](#functions))
  - `store` - stores the top stack element into a named variable without popping it (see [Variables](#variables))
  - `if` - a conditional construct that allows for branched execution (see [Conditionals](#conditionals))
  - `while` - a construct that allows for looping (see [Looping](#looping))
+
+### Top-Level Actions (cannot be evaluated)
+ - `quit` - quits the calculator
+ - `undo` - tries to undo the last operation. You can undo any number of times.
+ - `redo` - tries to redo the last undo. If you undo and then make a change to the stack, you can no longer "redo" back to the previous state.
 
 ## Addendum
 
