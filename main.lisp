@@ -66,6 +66,14 @@
   (let ((new-stack (redo (rpn-stack state) (rpn-history state))))
     (setf (rpn-stack state) new-stack)))
 
+(defmethod rpn-load ((state RPN) path)
+  (with-open-file (fin path :direction :input
+                       :if-does-not-exist nil)
+    (loop
+      (handler-case
+        (rpn-interact state (read fin))
+        (end-of-file () (return))))))
+
 (defmethod rpn-interact ((state RPN) input)
   (let ((*state* state))
     (cond
@@ -78,6 +86,10 @@
       ;; Redo
       ((symbol= input 'redo)
        (rpn-redo state))
+      ;; Load
+      ((and (listp input)
+            (symbol= (car input) 'load))
+       (rpn-load state (string (cadr input))))
       ;; Otherwise
       (t (let ((action (produce-action input (rpn-env state)))
                (stack (rpn-stack state)))

@@ -202,6 +202,21 @@ Here is an example of how packages can be used.
 (10 20 foo.bar) ;; 120
 ```
 
+## Loading
+
+A basic file loading mechanism is provided as follows: `(load <file-path>)`.
+This will execute all of the code in `<file-path>`.
+
+```scheme
+;; In double.rpn
+(def double dup +)
+
+;; In REPL
+(load "double.rpn")
+
+20 double ;; 40
+```
+
 ## Builtins
 
 ### Stack Manipulation
@@ -325,6 +340,7 @@ Here is an example of how packages can be used.
  - `quit` - quits the calculator
  - `undo` - tries to undo the last operation. You can undo any number of times.
  - `redo` - tries to redo the last undo. If you undo and then make a change to the stack, you can no longer "redo" back to the previous state.
+ - `load` - executes all of the forms within a file (see [Loading](#loading))
 
 ## Addendum
 
