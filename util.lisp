@@ -5,7 +5,6 @@
   (:export
     #:mkstr
     #:symb
-    #:setf-maybe
     #:symbol=
     #:with-gensyms
     #:compose
@@ -23,17 +22,9 @@
     #:alambda
     #:aif
     #:acond
+    #:package-designator
     ))
 (in-package :rpncalc/util)
-
-;; Evaluates target once, and if it is not nil,
-;; then it does (setf place target)
-;; Also optionally takes a function to excecute if the target is nil
-(defmacro setf-maybe (place target)
-  (let ((g (gensym)))
-    `(let ((,g ,target))
-      (if (not (null,g))
-          (setf ,place ,g)))))
 
 (defun symbol= (a b)
   (if (and (symbolp a) (symbolp b))
@@ -93,7 +84,7 @@
 ;; taken from StackOverflow
 (defun make-keyword (name) (values (intern (string-upcase name) "KEYWORD")))
 
-;; utils taken from Paul Graham's On Lisp
+;; some utils taken from Paul Graham's On Lisp
 (defun mkstr (&rest args)
   (with-output-to-string (s)
     (dolist (a args) (princ a s))))
@@ -116,12 +107,13 @@
   `(labels ((self ,parms ,@body))
      #'self))
 
+;; modified to be package-agnostic
 (defmacro aif (test-form then-form &optional else-form)
   (let ((it (intern (string 'it))))
     `(let ((,it ,test-form))
        (if ,it ,then-form ,else-form))))
 
-;; modified
+;; modified - chained aif
 (defmacro acond (&rest clauses)
   (if (null clauses)
     nil
@@ -129,3 +121,13 @@
       `(aif ,(car cl1)
            ,@(cdr cl1)
            (acond ,@(cdr clauses))))))
+
+;; Returns a symbol's proper name and the package it should be located in
+;; If no package designation (no dot), return nil for the package
+;; Ex: (package-designator :hello.world) ==> (values :hello :world)
+(defun package-designator (symbol)
+  (aif (position #\. (string symbol))
+       (values
+         (make-keyword (subseq (string symbol) 0 it))
+         (make-keyword (subseq (string symbol) (1+ it))))
+       (values nil symbol)))

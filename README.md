@@ -165,6 +165,43 @@ You should probably use the `while` construct instead, which is very similar to 
 )
 ```
 
+## Packages
+
+A package is a namespace where functions are located.
+Packages are only for organization - they aren't meant to provide encapsulation or other OOP-like abstractions.
+The name of the currently "active" package is shown in the top left of the stack.
+Every time you use `def`, the function you define will become part of the current package.
+Note: variables, on the other hand, are part of a global top-level scope - they are not associated with packages in any way.
+
+The default package is named USER, and it is automatically entered when you start the calculator.
+You can enter a different package with `(package <name>)`.
+If a package of that name does not already exist, it will be automatically created and then entered.
+
+You can access functions in a different package with the dot operator.
+For example, running `foo.bar` will cause the calculator to look for a function named `bar` in the package `foo`.
+For the sake of ambiguity, neither functions nor packages can have the character `"."` in their name.
+In addition, note that functions from a different package cannot be redefined from the current package.
+As a result, `(def foo.bar 10)` is simply illegal (you can't define a function named `foo.bar`, nor can you define a function named `bar` in `foo` - you would have to enter `foo` and then define `bar` from there).
+
+Builtin functions are located in BUILTINS and can therefore be accessed like so: `2 2 builtins.+`.
+However, `2 2 +` will also work, since builtins are treated as implicitly being part of every package.
+The BUILTINS package cannot be entered, so builtin operations can never be redefined.
+You can, however, define functions in the current package with the same name as a builtin function.
+This is not recommended, but it may be useful in specific circumstances.
+If you ever need to reset the definition of a function with the same name as a builtin, entering `(def + builtins.+)` will suffice.
+
+Here is an example of how packages can be used.
+
+```lisp
+(package foo)
+
+(def (bar x y) (:x :x * :y +))
+
+(package user)
+
+(10 20 foo.bar) ;; 120
+```
+
 ## Builtins
 
 ### Stack Manipulation
@@ -282,6 +319,7 @@ You should probably use the `while` construct instead, which is very similar to 
  - `store` - stores the top stack element into a named variable without popping it (see [Variables](#variables))
  - `if` - a conditional construct that allows for branched execution (see [Conditionals](#conditionals))
  - `while` - a construct that allows for looping (see [Looping](#looping))
+ - `package` - enters a package (see [Packages](#packages))
 
 ### Top-Level Actions (cannot be evaluated)
  - `quit` - quits the calculator

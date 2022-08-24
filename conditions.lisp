@@ -2,6 +2,7 @@
   (:use :cl)
   (:export
     #:rpn-undefined-function
+    #:rpn-undefined-package
     #:rpn-undefined-variable
     #:rpn-stack-empty
     #:rpn-name
@@ -11,13 +12,22 @@
     #:rpn-cannot-evaluate
     #:rpn-syntax-error
     #:rpn-quit
+    #:rpn-package
+    #:rpn-invalid-package-name
+    #:rpn-invalid-function-name
+    #:rpn-cannot-enter-builtins
+    #:rpn-unreachable
     ))
 (in-package :rpncalc/conditions)
 
 (define-condition rpn-undefined-function (error)
-  ((name :initarg :name :initform nil :reader rpn-name)))
+  ((name :initarg :name :initform nil :reader rpn-name)
+   (package :initarg :package :initform nil :reader rpn-package)))
 
 (define-condition rpn-undefined-variable (error)
+  ((name :initarg :name :initform nil :reader rpn-name)))
+
+(define-condition rpn-undefined-package (error)
   ((name :initarg :name :initform nil :reader rpn-name)))
 
 (define-condition rpn-stack-empty (error) ())
@@ -32,3 +42,10 @@
   ((element :initarg :element :initform nil :reader rpn-element)))
 
 (define-condition rpn-quit (simple-condition) ())
+
+(define-condition rpn-invalid-package-name (warning) ())
+(define-condition rpn-invalid-function-name (warning) ())
+
+(define-condition rpn-cannot-enter-builtins (warning) ())
+
+(define-condition rpn-unreachable (error) ((message :initarg :message :initform nil :reader rpn-message)))
