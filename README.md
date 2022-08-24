@@ -237,16 +237,24 @@ You should probably use the `while` construct instead, which is very similar to 
  - `realpart` - if the top element is complex, return its real part
  - `imagpart` - if the top element is complex, return its imaginary part
 
-### Logic Operations (where 0 is "false" and everything else is "true")
- - `not` - returns the bitwise not of the top two stack elements
- - `and` - returns the bitwise and of the top two stack elements
- - `or` - returns the bitwise or of the top two stack elements
- - `xor` - returns the bitwise xor of the top two stack elements
- - `nand` - returns the bitwise nand of the top two stack elements
- - `nor` - returns the bitwise nor of the top two stack elements
+### Bitwise Operations (integers only, assuming two's complement representation)
+ - `lnot` - returns the bitwise not of the top two stack elements
+ - `land` - returns the bitwise and of the top two stack elements
+ - `lor` - returns the bitwise or of the top two stack elements
+ - `lxor` - returns the bitwise xor of the top two stack elements
+ - `lnand` - returns the bitwise nand of the top two stack elements
+ - `lnor` - returns the bitwise nor of the top two stack elements
  - `bit` - returns the nth bit of an integer x, where x and n are the two top stack elements
  - `<<` - returns the bitwise left shift a << b, where a and b are the top two stack elements
  - `>>` - returns the bitwise right shift a >> b, where a and b are the top two stack elements
+
+### Logic Operations (where 0 is "false" and everything else is "true")
+ - `not` - returns 0 if top element is true, 1 otherwise
+ - `and` - returns 1 if the top two elements are both true, 0 otherwise
+ - `or` - returns 0 if the top two elements are false, 1 otherwise
+ - `xor` - returns 0 if the top two elements are either both true or both false, 1 otherwise
+ - `nand` - returns the 0 if the top two elements are both true, 1 otherwise
+ - `nor` - returns 1 if the top two elements are false, 0 otherwise
  - `switch` - if the top element is true, then the second top element, otherwise the third
  - `zerop` - returns 1 if the top element is 0, otherwise 0
  - `onep` - returns 1 if the top element is 1, otherwise 0
