@@ -1,6 +1,6 @@
-(defpackage rpncalc/tests
-  (:use :cl :rpncalc))
-(in-package :rpncalc/tests)
+(defpackage zpcalc/tests
+  (:use :cl :zpcalc))
+(in-package :zpcalc/tests)
 
 (defvar *tests* nil)
 

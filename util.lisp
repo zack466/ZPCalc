@@ -1,6 +1,6 @@
 (in-package :cl-user)
 
-(defpackage rpncalc/util
+(defpackage zpcalc/util
   (:use :cl)
   (:export
     #:mkstr
@@ -24,7 +24,7 @@
     #:acond
     #:package-designator
     ))
-(in-package :rpncalc/util)
+(in-package :zpcalc/util)
 
 (defun symbol= (a b)
   (if (and (symbolp a) (symbolp b))

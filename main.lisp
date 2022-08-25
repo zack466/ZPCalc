@@ -1,15 +1,15 @@
 (in-package :cl-user)
 
-(defpackage rpncalc
+(defpackage zpcalc
   (:use
     :cl
-    :rpncalc/util
-    :rpncalc/state
-    :rpncalc/conditions
-    :rpncalc/env
-    :rpncalc/history)
+    :zpcalc/util
+    :zpcalc/state
+    :zpcalc/conditions
+    :zpcalc/env
+    :zpcalc/history)
   (:export #:main))
-(in-package :rpncalc)
+(in-package :zpcalc)
 
 
 ;; State:
@@ -416,18 +416,18 @@
   (setf (gethash :PACKAGE-EXISTS *builtins*) (do! (x <- pop!) (push! (bool->int (gethash x *all-packages*))))))
 
 (defmethod print-stack ((state RPN))
-  (format t "~30,,,'-A~%" (rpn-package state))
+  (format t "~50,,,'-A~%" (rpn-package state))
   (aif (rpn-stack state)
        (mapcar #'(lambda (x)
                    (typecase x
-                     (integer (format t "~30:<~D~>~%" x))
-                     (complex (format t "~30:<~a + ~ai~>~%" (realpart x) (imagpart x)))
-                     (number (format t "~30:<~a~>~%" x))
-                     ;; (number (format t "~30:<~30,10E~>~%" x))
-                     (t (format t "~30:<~S~>~%" x))))
+                     (integer (format t "~50:<~D~>~%" x))
+                     (complex (format t "~50:<~a + ~ai~>~%" (realpart x) (imagpart x)))
+                     (number (format t "~50:<~a~>~%" x))
+                     ;; (number (format t "~50:<~50,10E~>~%" x))
+                     (t (format t "~50:<~S~>~%" x))))
                (reverse it))
-       (format t "~30:<Stack is empty~>~%"))
-  (format t "~30,,,'-A~%" "-"))
+       (format t "~50:<Stack is empty~>~%"))
+  (format t "~50,,,'-A~%" "-"))
 
 (defun read-prompt (prompt)
   (format t "~a" prompt)

@@ -1,4 +1,4 @@
-(defpackage rpncalc/conditions
+(defpackage zpcalc/conditions
   (:use :cl)
   (:export
     #:rpn-undefined-function
@@ -18,7 +18,7 @@
     #:rpn-cannot-enter-builtins
     #:rpn-unreachable
     ))
-(in-package :rpncalc/conditions)
+(in-package :zpcalc/conditions)
 
 (define-condition rpn-undefined-function (error)
   ((name :initarg :name :initform nil :reader rpn-name)

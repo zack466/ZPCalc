@@ -1,20 +1,18 @@
-run: rpncalc
-	./rpncalc
+run: build
+	./zpcalc
 
-rpncalc: *.lisp
-	sbcl --eval '(asdf:make :rpncalc)' \
+build: *.lisp
+	sbcl --eval '(asdf:make :zpcalc)' \
 		--eval '(quit)'
 	# for smaller executable size, use ECL
 	# ecl --eval '(require :asdf)' \
-	# 	--eval "(defpackage rpncalc (:use :cl) (:export #:main))" \
-	# 	--eval "(asdf:make-build :rpncalc :type :program :epilogue-code '(progn (rpncalc:main) (quit)))" \
+	# 	--eval "(defpackage zpcalc (:use :cl) (:export #:main))" \
+	# 	--eval "(asdf:make-build :zpcalc :type :program :epilogue-code '(progn (zpcalc:main) (quit)))" \
 	# 	--eval '(quit)'
 
 interactive:
-	sbcl --eval '(asdf:load-system :rpncalc)'
+	sbcl --eval '(asdf:load-system :zpcalc)'
 
 test:
-	sbcl --eval '(asdf:test-system :rpncalc)' \
+	sbcl --eval '(asdf:test-system :zpcalc)' \
 		--eval '(quit)'
-
-build: rpncalc

@@ -1,12 +1,12 @@
 (in-package :cl-user)
 
-(defpackage rpncalc/env
+(defpackage zpcalc/env
   (:use :cl)
-  (:import-from #:rpncalc/util #:acond)
+  (:import-from #:zpcalc/util #:acond)
   (:export
     #:make-env
     #:get-env))
-(in-package :rpncalc/env)
+(in-package :zpcalc/env)
 
 ;; A simple lexical environment backed by a hash table
 ;; environment :: (hash-table * Maybe environment)

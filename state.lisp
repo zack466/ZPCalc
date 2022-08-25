@@ -1,7 +1,7 @@
 (in-package :cl-user)
 
-(defpackage rpncalc/state
-  (:use :cl :rpncalc/util :rpncalc/conditions)
+(defpackage zpcalc/state
+  (:use :cl :zpcalc/util :zpcalc/conditions)
   (:export
     #:>>=
     #:>>
@@ -19,7 +19,7 @@
     #:unroll!
     #:id!
     #:do!))
-(in-package :rpncalc/state)
+(in-package :zpcalc/state)
 
 ;; state monad: contains a stateful computation
 ;; State = (lambda (old-state) (cons return-value new-state))

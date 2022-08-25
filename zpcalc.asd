@@ -1,4 +1,4 @@
-(defsystem "rpncalc"
+(defsystem "zpcalc"
   :version "0.1.0"
   :author ""
   :license ""
@@ -12,13 +12,13 @@
                (:file "main"))
   :description ""
   :build-operation "program-op"
-  :build-pathname "rpncalc"
-  :entry-point (symbol-call :rpncalc :main)
-  :in-order-to ((test-op (test-op "rpncalc/tests"))))
+  :build-pathname "zpcalc"
+  :entry-point (symbol-call :zpcalc :main)
+  :in-order-to ((test-op (test-op "zpcalc/tests"))))
 
-(defsystem "rpncalc/tests"
+(defsystem "zpcalc/tests"
   :author ""
   :license ""
-  :depends-on ("rpncalc")
+  :depends-on ("zpcalc")
   :components ((:file "test"))
-  :description "Test system for rpncalc")
+  :description "Test system for zpcalc")

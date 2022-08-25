@@ -1,13 +1,13 @@
 (in-package :cl-user)
 
-(defpackage rpncalc/history
-  (:use :cl :rpncalc/conditions)
+(defpackage zpcalc/history
+  (:use :cl :zpcalc/conditions)
   (:export
     #:make-history
     #:record
     #:undo
     #:redo))
-(in-package :rpncalc/history)
+(in-package :zpcalc/history)
 
 ;; History implemented as a "zipper" made from two stacks: the undo history and the redo history
 ;; Assumes the user has access to the current state

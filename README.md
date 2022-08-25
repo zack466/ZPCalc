@@ -1,12 +1,14 @@
-# rpncalc - a RPN calculator written in Common Lisp
+# Zack's Programmable Calculator (zpcalc)
+
+An interactive [RPN](https://en.wikipedia.org/wiki/Reverse_Polish_notation) calculator and programming language inspired by Forth and Lisp.
 
 ## Installation
 
 Requirements: sbcl (or ecl)
 
 1. Git clone this repository and `cd` into it.
-2. Run `make rpncalc`.
-3. Now, you have a static executable called `rpncalc`! Simply run with `./rpncalc`.
+2. Run `make build`.
+3. Now, you have a static executable called `zpcalc`! Simply run with `./zpcalc`.
 
 ## How to Use
 
