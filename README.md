@@ -164,6 +164,20 @@ You should probably use the `while` construct instead, which is very similar to 
     rcl dec sto drop))
 )
 ```
+## Loading
+
+A basic file loading mechanism is provided as follows: `(load <file-path>)`.
+This will execute all of the code in `<file-path>`.
+
+```scheme
+;; In double.rpn
+(def double dup +)
+
+;; In REPL
+(load double.rpn)
+
+20 double ;; 40
+```
 
 ## Packages
 
@@ -174,7 +188,7 @@ Every time you use `def`, the function you define will become part of the curren
 Note: variables, on the other hand, are part of a global top-level scope - they are not associated with packages in any way.
 
 The default package is named USER, and it is automatically entered when you start the calculator.
-You can enter a different package with `(package <name>)`.
+You can enter a different package with `(in-package <name>)`.
 If a package of that name does not already exist, it will be automatically created and then entered.
 
 You can access functions in a different package with the dot operator.
@@ -193,28 +207,40 @@ If you ever need to reset the definition of a function with the same name as a b
 Here is an example of how packages can be used.
 
 ```lisp
-(package foo)
+(in-package foo)
 
 (def (bar x y) (:x :x * :y +))
 
-(package user)
+(in-package user)
 
 (10 20 foo.bar) ;; 120
 ```
 
-## Loading
+There are also a few builtins that let you work with packages programmatically.
+You can push the name of the current package onto the stack with `package`.
+You can then enter this package with `package-enter`.
+The point of these is so that you can load files with no effect on the current stack/package state.
+You can also check if a package already exists using `package-exists`.
 
-A basic file loading mechanism is provided as follows: `(load <file-path>)`.
-This will execute all of the code in `<file-path>`.
+```lisp
+;; library.rpn
 
-```scheme
-;; In double.rpn
-(def double dup +)
+package ;; save the old package onto the stack
 
-;; In REPL
-(load "double.rpn")
+(in-package library)
+(def foo 10)
+(def bar foo foo)
 
-20 double ;; 40
+package-enter ;; return to previous package
+
+;; in REPL
+(in-package foo)
+
+(load library.rpn)
+
+library.bar + ;; 20
+
+':library package-exists ;; 1
 ```
 
 ## Builtins
@@ -328,13 +354,16 @@ This will execute all of the code in `<file-path>`.
  - `eval` - tries to "execute" the topmost value on the stack (see [Quoting](#quoting)).
  - `sto` - stores the top stack value into a global, unnamed register (without a pop)
  - `rcl` - recalls the value stored in the global, unnamed register onto the stack
+ - `package` - pushes a symbol that represents the current package onto the stack
+ - `package-enter` - enters the package named by the top element of the stack
+ - `package-exists` - returns 1 if the top element of the stack represents a package that exists, 0 otherwise
 
 ### Special Constructs
- - `def` - creates a user-defined function (see [Functions](#functions))
- - `store` - stores the top stack element into a named variable without popping it (see [Variables](#variables))
- - `if` - a conditional construct that allows for branched execution (see [Conditionals](#conditionals))
- - `while` - a construct that allows for looping (see [Looping](#looping))
- - `package` - enters a package (see [Packages](#packages))
+ - `(def)` - creates a user-defined function (see [Functions](#functions))
+ - `(store)` - stores the top stack element into a named variable without popping it (see [Variables](#variables))
+ - `(if)` - a conditional construct that allows for branched execution (see [Conditionals](#conditionals))
+ - `(while)` - a construct that allows for looping (see [Looping](#looping))
+ - `(package)` - enters a package (see [Packages](#packages))
 
 ### Top-Level Actions (cannot be evaluated)
  - `quit` - quits the calculator

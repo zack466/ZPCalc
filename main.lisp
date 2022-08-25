@@ -69,10 +69,14 @@
 (defmethod rpn-load ((state RPN) path)
   (with-open-file (fin path :direction :input
                        :if-does-not-exist nil)
-    (loop
-      (handler-case
-        (rpn-interact state (read fin))
-        (end-of-file () (return))))))
+    (if (null fin)
+      (format t "Load error: file ~a does not exist~%" path)
+      (loop
+        (handler-case
+          (rpn-interact state (read fin))
+          (end-of-file () (progn
+                            (format t "Load Success!~%")
+                            (return))))))))
 
 (defmethod rpn-interact ((state RPN) input)
   (let ((*state* state))
@@ -106,30 +110,29 @@
 ;; min/max fixnum, float epislon, etc
 ;; plus variations like 2pi, pi2, pi3, 2pi3, etc
 
-(defmacro apply! (symbol)
-  (with-gensyms (s pkg sym)
-    `(lambda (,s)
-       (multiple-value-bind (,pkg ,sym)
-         (package-designator ,symbol)
-         (acond
-           ;; package exists
-           ((and ,pkg (gethash ,pkg *all-packages*))
-              (aif (gethash (make-keyword ,sym) it)
-                   (funcall it ,s)
-                   (error 'rpn-undefined-function :name ,sym :package ,pkg)))
-           ;; package is not nil, but doesn't exist
-           ((not (null ,pkg)) (error 'rpn-undefined-package :name ,pkg))
-           ;; look into current package
-           ((gethash (rpn-package *state*) *all-packages*)
-            (aif (gethash (make-keyword ,sym) it)
-                 (funcall it ,s)
-                 ;; builtins
-                 (aif (gethash (make-keyword ,sym) *builtins*)
-                      (funcall it ,s)
-                      (error 'rpn-undefined-function :name ,sym :package (rpn-package *state*)))))
-           ;; The current package should always be defined, see rpn-enter-package
-           ;; Every case should be covered, so this error should never happen
-           (t (error 'rpn-unreachable :message "Current package not defined.")))))))
+(defun apply! (symbol package)
+  (lambda (s)
+    (multiple-value-bind (pkg sym)
+      (package-designator symbol)
+      (acond
+        ;; package exists
+        ((and pkg (gethash pkg *all-packages*))
+         (aif (gethash (make-keyword sym) it)
+              (funcall it s)
+              (error 'rpn-undefined-function :name sym :package pkg)))
+        ;; package is not nil, but doesn't exist
+        ((not (null pkg)) (error 'rpn-undefined-package :name pkg))
+        ;; look into current package
+        ((gethash package *all-packages*)
+         (aif (gethash (make-keyword sym) it)
+              (funcall it s)
+              ;; builtins
+              (aif (gethash (make-keyword sym) *builtins*)
+                   (funcall it s)
+                   (error 'rpn-undefined-function :name sym :package package))))
+        ;; The current package should always be defined, see rpn-enter-package
+        ;; Every case should be covered, so this error should never happen
+        (t (error 'rpn-unreachable :message "Current package not defined."))))))
 
 (defmacro var-get! (keyword env)
   (with-gensyms (s lookup)
@@ -183,6 +186,18 @@
                     (rec (>> acc (car rest)) (cdr rest)))))
       (rec (car actions) (cdr actions)))))
 
+(defun in-package! (input)
+  (let ((name (make-keyword input)))
+    (cond
+      ((find #\. (string name))
+       (warn 'rpn-invalid-package-name))
+      ((equal name :builtins)
+       (warn 'rpn-cannot-enter-builtins))
+      (t (when (null (gethash name *all-packages*))
+           (setf (gethash name *all-packages*) (make-hash-table)))
+         (setf (rpn-package *state*) name)))
+    (return!)))
+
 (defun produce-action (input env)
   (cond
     ;; number
@@ -197,7 +212,7 @@
      (eval! env)) 
     ;; symbol
     ((symbolp input)
-     (apply! input)) 
+     (apply! input (rpn-package *state*))) 
     ;; quote - technically, this lets you push arbitrary Common Lisp objects
     ;; onto the stack, even if they can't be evaluated, but I don't think
     ;; that will be a problem
@@ -206,17 +221,8 @@
      (push! (cadr input)))
     ;; Package
     ((and (listp input)
-          (symbol= 'package (car input)))
-     (let ((name (make-keyword (cadr input))))
-       (cond
-         ((find #\. (string name))
-          (warn 'rpn-invalid-package-name))
-         ((equal name :builtins)
-          (warn 'rpn-cannot-enter-builtins))
-         (t (when (null (gethash name *all-packages*))
-              (setf (gethash name *all-packages*) (make-hash-table)))
-            (setf (rpn-package *state*) name)))
-       (return!)))
+          (symbol= 'in-package (car input)))
+     (in-package! (cadr input)))
     ;; store variable
     ;; should this pop the variable?
     ((and (listp input)
@@ -405,7 +411,9 @@
   (setf (gethash :RCL *builtins*) (rcl!)) ;; recall
   (setf (gethash :ID *builtins*) (return!)) ;; do nothing
   (setf (gethash :ERROR *builtins*) (lambda (s) (declare (ignorable s)) (signal "oopsie")))
-  )
+  (setf (gethash :PACKAGE *builtins*) (push! (rpn-package *state*)))
+  (setf (gethash :PACKAGE-ENTER *builtins*) (do! (x <- pop!) (in-package! x)))
+  (setf (gethash :PACKAGE-EXISTS *builtins*) (do! (x <- pop!) (push! (bool->int (gethash x *all-packages*))))))
 
 (defmethod print-stack ((state RPN))
   (format t "~30,,,'-A~%" (rpn-package state))
