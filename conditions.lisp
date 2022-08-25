@@ -1,51 +1,50 @@
 (defpackage zpcalc/conditions
   (:use :cl)
   (:export
-    #:rpn-undefined-function
-    #:rpn-undefined-package
-    #:rpn-undefined-variable
-    #:rpn-stack-empty
-    #:rpn-name
-    #:rpn-element
-    #:rpn-cannot-undo
-    #:rpn-cannot-redo
-    #:rpn-cannot-evaluate
-    #:rpn-syntax-error
-    #:rpn-quit
-    #:rpn-package
-    #:rpn-invalid-package-name
-    #:rpn-invalid-function-name
-    #:rpn-cannot-enter-builtins
-    #:rpn-unreachable
-    ))
+    #:calc-undefined-function
+    #:calc-undefined-package
+    #:calc-undefined-variable
+    #:calc-stack-empty
+    #:calc-name
+    #:calc-element
+    #:calc-cannot-undo
+    #:calc-cannot-redo
+    #:calc-cannot-evaluate
+    #:calc-syntax-error
+    #:calc-quit
+    #:calc-package
+    #:calc-invalid-package-name
+    #:calc-invalid-function-name
+    #:calc-cannot-enter-builtins
+    #:calc-unreachable))
 (in-package :zpcalc/conditions)
 
-(define-condition rpn-undefined-function (error)
-  ((name :initarg :name :initform nil :reader rpn-name)
-   (package :initarg :package :initform nil :reader rpn-package)))
+(define-condition calc-undefined-function (error)
+  ((name :initarg :name :initform nil :reader calc-name)
+   (package :initarg :package :initform nil :reader calc-package)))
 
-(define-condition rpn-undefined-variable (error)
-  ((name :initarg :name :initform nil :reader rpn-name)))
+(define-condition calc-undefined-variable (error)
+  ((name :initarg :name :initform nil :reader calc-name)))
 
-(define-condition rpn-undefined-package (error)
-  ((name :initarg :name :initform nil :reader rpn-name)))
+(define-condition calc-undefined-package (error)
+  ((name :initarg :name :initform nil :reader calc-name)))
 
-(define-condition rpn-stack-empty (error) ())
+(define-condition calc-stack-empty (error) ())
 
-(define-condition rpn-cannot-undo (error) ())
-(define-condition rpn-cannot-redo (error) ())
+(define-condition calc-cannot-undo (error) ())
+(define-condition calc-cannot-redo (error) ())
 
-(define-condition rpn-cannot-evaluate (error)
-  ((element :initarg :element :initform nil :reader rpn-element)))
+(define-condition calc-cannot-evaluate (error)
+  ((element :initarg :element :initform nil :reader calc-element)))
 
-(define-condition rpn-syntax-error (error)
-  ((element :initarg :element :initform nil :reader rpn-element)))
+(define-condition calc-syntax-error (error)
+  ((element :initarg :element :initform nil :reader calc-element)))
 
-(define-condition rpn-quit (simple-condition) ())
+(define-condition calc-quit (simple-condition) ())
 
-(define-condition rpn-invalid-package-name (warning) ())
-(define-condition rpn-invalid-function-name (warning) ())
+(define-condition calc-invalid-package-name (warning) ())
+(define-condition calc-invalid-function-name (warning) ())
 
-(define-condition rpn-cannot-enter-builtins (warning) ())
+(define-condition calc-cannot-enter-builtins (warning) ())
 
-(define-condition rpn-unreachable (error) ((message :initarg :message :initform nil :reader rpn-message)))
+(define-condition calc-unreachable (error) ((message :initarg :message :initform nil :reader calc-message)))

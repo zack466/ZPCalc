@@ -1,7 +1,11 @@
 (in-package :cl-user)
 
 (defpackage zpcalc/state
-  (:use :cl :zpcalc/util :zpcalc/conditions)
+  (:use :cl)
+  (:import-from
+    #:zpcalc/util
+    #:with-gensyms
+    #:symbol=)
   (:export
     #:>>=
     #:>>
@@ -10,15 +14,11 @@
     #:set!
     #:modify!
     #:return!
-    #:push!
-    #:top!
-    #:pop!
-    #:drop!
-    #:dup!
-    #:roll!
-    #:unroll!
     #:id!
-    #:do!))
+    #:do!
+    #:>>>
+    #:side-effect!
+    ))
 (in-package :zpcalc/state)
 
 ;; state monad: contains a stateful computation
@@ -70,45 +70,12 @@
   (with-gensyms (s)
     `(lambda (,s) (cons nil (funcall ,f ,s)))))
 
-;; stack-related state actions
-(defmacro push! (element)
-  (with-gensyms (state)
-    `(lambda (,state)
-       (cons nil (cons ,element ,state)))))
-
-(defmacro top! ()
+;; SUPER unpure, but is kinda useful
+(defmacro side-effect! (&rest body)
   (with-gensyms (s)
-    `(lambda (,s) (if (null ,s) (error 'rpn-stack-empty) (cons (car ,s) ,s)))))
-
-(defmacro pop! ()
-  (with-gensyms (s)
-    `(lambda (,s) (if (null ,s) (error 'rpn-stack-empty) (cons (car ,s) (cdr ,s))))))
-
-(defmacro drop! ()
-  (with-gensyms (s)
-    `(lambda (,s) (cons nil (cdr ,s)))))
-
-(defmacro dup! ()
-  (with-gensyms (s)
-    `(lambda (,s) (if (null ,s) (error 'rpn-stack-empty) (cons nil (cons (car ,s) ,s))))))
-
-(defmacro roll! ()
-  (with-gensyms (s top rest)
     `(lambda (,s)
-       (if (null ,s)
-         ,s
-         (let* ((,top (car ,s))
-                (,rest (cdr ,s)))
-           (cons nil (append ,rest (list ,top))))))))
-
-(defmacro unroll! ()
-  (with-gensyms (s top last)
-    `(lambda (,s)
-       (if (null ,s)
-         ,s
-         (let* ((,top (butlast ,s))
-                (,last (last ,s)))
-           (cons nil (append ,last ,top)))))))
+       (progn ,@body)
+       (cons nil ,s))))
 
 (defmacro do! (&rest lines)
   (do!% lines))
@@ -128,3 +95,14 @@
          `(let ((,(cadr line) ,(caddr line)))
             ,(do!% (cdr lines))))
         (t `(>> ,line ,(do!% (cdr lines))))))))
+
+;; binds together actions using >>
+;; can't use reduce bc >> is a macro...
+(defun >>> (actions)
+  (if (null actions)
+    (return!)
+    (labels ((rec (acc rest)
+                  (if (null rest)
+                    acc
+                    (rec (>> acc (car rest)) (cdr rest)))))
+      (rec (car actions) (cdr actions)))))

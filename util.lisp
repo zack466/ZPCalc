@@ -22,8 +22,7 @@
     #:alambda
     #:aif
     #:acond
-    #:package-designator
-    ))
+    #:package-designator))
 (in-package :zpcalc/util)
 
 (defun symbol= (a b)

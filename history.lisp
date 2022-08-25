@@ -1,7 +1,11 @@
 (in-package :cl-user)
 
 (defpackage zpcalc/history
-  (:use :cl :zpcalc/conditions)
+  (:use :cl)
+  (:import-from
+    #:zpcalc/conditions
+    #:calc-cannot-undo
+    #:calc-cannot-redo)
   (:export
     #:make-history
     #:record
@@ -35,7 +39,7 @@
 ;; Returns the most recently recorded "undo" state
 (defun undo (state history)
   (when (null (car history))
-    (error 'rpn-cannot-undo))
+    (error 'calc-cannot-undo))
   (push state (cdr history))
   (pop (car history)))
 
@@ -43,6 +47,6 @@
 ;; Returns the most recently recorded "redo" state
 (defun redo (state history)
   (when (null (cdr history))
-    (error 'rpn-cannot-redo))
+    (error 'calc-cannot-redo))
   (push state (car history))
   (pop (cdr history)))

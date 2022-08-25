@@ -157,26 +157,25 @@ You should probably use the `while` construct instead, which is very similar to 
   :x sto drop 
   ;; initial value/accumulator
   1 
-  (while
-    ;; while x is positive
-    (rcl plusp) 
+  (while (rcl plusp) ;; while x is positive
     ;; update accumulator
-    (rcl *
+    rcl *
     ;; decrement loop counter
-    rcl dec sto drop))
+    rcl dec sto drop)
 )
 ```
 ## Loading
 
 A basic file loading mechanism is provided as follows: `(load <file-path>)`.
 This will execute all of the code in `<file-path>`.
+Note that if an error occurs while loading a file, loading will immediately stop, and any changes to the stack will be reverted (though function definitions may remain).
 
 ```scheme
-;; In double.rpn
+;; In double.zpc
 (def double dup +)
 
 ;; In REPL
-(load double.rpn)
+(load double.zpc)
 
 20 double ;; 40
 ```
@@ -225,7 +224,7 @@ The point of these is so that you can load files with no effect on the current s
 You can also check if a package already exists using `package-exists`.
 
 ```lisp
-;; library.rpn
+;; library.zpc
 
 package ;; save the old package onto the stack
 
@@ -238,7 +237,7 @@ package-enter ;; return to previous package
 ;; in REPL
 (in-package foo)
 
-(load library.rpn)
+(load library.zpc)
 
 library.bar + ;; 20
 
