@@ -1,7 +1,7 @@
 (defsystem "zpcalc"
   :version "0.1.0"
-  :author ""
-  :license ""
+  :author "Zachary Huang"
+  :license "MIT"
   :depends-on ()
   :serial t
   :components ((:file "util")
