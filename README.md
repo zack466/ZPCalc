@@ -45,7 +45,7 @@ This calculator supports lexically-scoped variables.
 Variables are always prefixed with a colon (like `:x`, for example).
 You can store the topmost stack value into a variable by entering `(store <var-name>)`.
 Then, entering `:<var-name>` will put the value of the variable onto the stack.
-If you "store" a value as part of the body of a function, the variable will not be accessible outside of the function's scope.
+If you store a value as part of the body of a function, the variable will not be accessible outside of the function's scope.
 
 There is also a function `sto` which stores the top value of the stack into an unnamed global register.
 The value of this register can be returned using `rcl`.
@@ -220,8 +220,10 @@ Here is an example of how packages can be used.
 There are also a few builtins that let you work with packages programmatically.
 You can push the name of the current package onto the stack with `package`.
 You can then enter this package with `package-enter`.
-The point of these is so that you can load files with no effect on the current stack/package state.
+Running `':user package-enter` does the same thing as `(in-package user)`.
 You can also check if a package already exists using `package-exists`.
+The point of these is so that you can load files with no effect on the current stack/package state.
+For an example, see below:
 
 ```lisp
 ;; library.zpc

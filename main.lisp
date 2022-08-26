@@ -43,7 +43,7 @@
      :initarg env
      :initform (make-env)
      :accessor calc-env)
-   ;; all packages loaded
+   ;; all loaded packages 
    (packages
      :initarg packages
      :initform (let ((h (make-hash-table)))
@@ -165,7 +165,8 @@
   (lambda (s)
     (funcall (get-action input) s)))
 
-;; "compiles" a symbolic input into an action
+;; This "compiles" a symbolic input into an action
+;; Special functions and constructs are implemented here
 (defun compile-action (input env)
   (cond
     ;; number
@@ -174,7 +175,7 @@
     ;; variable
     ((keywordp input)
      (recall! input env))
-    ;; A few operations that require context from the calculator
+    ;; some debugging tools
     ;; disassemble
     ((and (symbolp input)
           (symbol= input 'disassemble))
@@ -182,6 +183,34 @@
           (let action (get-action top))
           (side-effect! (disassemble action))
            (return!)))
+    ;; show top-level registers
+    ((and (symbolp input)
+          (symbol= input 'show-registers))
+     (format t "sto <= ~s~%" (calc-reg *state*))
+     (loop for k being the hash-keys in (car (calc-env *state*)) using (hash-value v)
+           do (format t "~s <= ~s~%" k v))
+     (return!))
+    ;; show defined packages
+    ((and (symbolp input)
+          (symbol= input 'show-packages))
+     (loop for k being the hash-keys in (calc-packages *state*)
+           do (format t "~S~%" k))
+     (return!))
+    ;; show functions defined in current package
+    ((and (symbolp input)
+          (symbol= input 'show-functions))
+     (loop for k being the hash-keys in (gethash (calc-package *state*) (calc-packages *state*))
+           do (format t "~a~%" k))
+     (return!))
+    ;; show functions defined in a package
+    ((and (symbolp input)
+          (symbol= input 'show-functions-in))
+     (do! (x <- pop!)
+          (side-effect!
+            (loop for k being the hash-keys in (gethash x (calc-packages *state*))
+                  do (format t "~a~%" k)))
+          (return!)))
+    ;; A few operations that require context from the calculator
     ;; eval
     ((and (symbolp input)
           (symbol= input 'eval))

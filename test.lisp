@@ -196,4 +196,6 @@
 
 ;; TODO: test example code
 
+;; TODO: some more complex examples and edge cases
+
 (run-tests)
