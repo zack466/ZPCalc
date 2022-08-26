@@ -16,7 +16,9 @@
     #:calc-invalid-package-name
     #:calc-invalid-function-name
     #:calc-cannot-enter-builtins
-    #:calc-unreachable))
+    #:calc-unreachable
+    #:calc-message
+    ))
 (in-package :zpcalc/conditions)
 
 (define-condition calc-undefined-function (error)

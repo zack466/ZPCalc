@@ -19,7 +19,7 @@
 ;; If not found, returns nil
 (defun get-env (key env)
   (acond ((gethash key (car env)) it)
-         ((cdr env) (env-get it key))
+         ((cdr env) (get-env it key))
          (t nil)))
 
 ;; Allow the use of setf to set variable values

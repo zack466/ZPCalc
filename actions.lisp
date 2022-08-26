@@ -12,7 +12,8 @@
   (:import-from
     #:zpcalc/util
     #:with-gensyms
-    #:make-keyword)
+    #:make-keyword
+    #:truthy)
   (:export
     #:run!
     #:push!

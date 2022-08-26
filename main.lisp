@@ -1,25 +1,7 @@
 (in-package :cl-user)
 
 (defpackage zpcalc
-  (:use :cl)
-  (:import-from
-    #:zpcalc/conditions
-    #:calc-undefined-function
-    #:calc-undefined-package
-    #:calc-undefined-variable
-    #:calc-stack-empty
-    #:calc-name
-    #:calc-element
-    #:calc-cannot-undo
-    #:calc-cannot-redo
-    #:calc-cannot-evaluate
-    #:calc-syntax-error
-    #:calc-quit
-    #:calc-package
-    #:calc-invalid-package-name
-    #:calc-invalid-function-name
-    #:calc-cannot-enter-builtins
-    #:calc-unreachable)
+  (:use :cl #:zpcalc/conditions)
   (:import-from
     #:zpcalc/env
     #:make-env)
@@ -39,7 +21,10 @@
     #:acond
     #:symbol=
     #:package-designator
-    #:make-keyword)
+    #:make-keyword
+    #:bool->int
+    #:truthy
+    )
   (:import-from
     #:zpcalc/actions
     #:push!
@@ -47,13 +32,20 @@
     #:side-effect!
     #:do!
     #:run!
+    #:store!
     #:recall!
     #:top!
     #:return!
     #:while!
-    #:>>>)
+    #:>>>
+    )
   (:export
     #:Calc
+    #:calc-stack
+    #:calc-env
+    #:calc-package
+    #:calc-history
+    #:calc-reg
     #:calc-undo
     #:calc-redo
     #:calc-load
@@ -62,6 +54,8 @@
     #:calc-print
     #:main))
 (in-package :zpcalc)
+
+;; (declaim (optimize (debug 0) (safety 0) (speed 3)))
 
 ;; Currently active calculator (not to be confused with the State monad)
 (defvar *state* nil)
@@ -165,6 +159,34 @@
                (record stack (calc-history state))
                (setf (calc-stack state) new-stack))))))))
 
+;; grabs the compiled action associated with a symbol
+(defun get-action (input)
+  (multiple-value-bind (pkg sym)
+    (package-designator input)
+    (acond
+      ;; package exists
+      ((and pkg (gethash pkg *all-packages*))
+       (aif (gethash (make-keyword sym) it)
+            it
+            (error 'calc-undefined-function :name sym :package pkg)))
+      ;; package is not nil, but doesn't exist
+      ((not (null pkg)) (error 'calc-undefined-package :name pkg))
+      ;; look into current package
+      ((gethash (calc-package *state*) *all-packages*)
+       (aif (gethash (make-keyword sym) it)
+            it
+            ;; builtins
+            (aif (gethash (make-keyword sym) *builtins*)
+                 it
+                 (error 'calc-undefined-function :name sym :package (calc-package *state*)))))
+      ;; The current package should always be defined, see calc-enter-package
+      ;; Every case should be covered, so this error should never happen
+      (t (error 'calc-unreachable :message "Current package not defined.")))))
+
+(defun dispatch! (input)
+  (lambda (s)
+    (funcall (get-action input) s)))
+
 ;; "compiles" a symbolic input into an action
 (defun compile-action (input env)
   (cond
@@ -174,8 +196,14 @@
     ;; variable
     ((keywordp input)
      (recall! input env))
-
     ;; A few operations that require context from the calculator
+    ;; disassemble
+    ((and (symbolp input)
+          (symbol= input 'disassemble))
+     (do! (top <- pop!)
+          (let action (get-action top))
+          (side-effect! (disassemble action))
+           (return!)))
     ;; eval
     ((and (symbolp input)
           (symbol= input 'eval))
@@ -206,28 +234,7 @@
      (do! (x <- pop!) (push! (bool->int (gethash x *all-packages*)))))
     ;; all other symbols
     ((symbolp input)
-     (lambda (s)
-       (multiple-value-bind (pkg sym)
-         (package-designator input)
-         (acond
-           ;; package exists
-           ((and pkg (gethash pkg *all-packages*))
-            (aif (gethash (make-keyword sym) it)
-                 (funcall it s)
-                 (error 'calc-undefined-function :name sym :package pkg)))
-           ;; package is not nil, but doesn't exist
-           ((not (null pkg)) (error 'calc-undefined-package :name pkg))
-           ;; look into current package
-           ((gethash (calc-package *state*) *all-packages*)
-            (aif (gethash (make-keyword sym) it)
-                 (funcall it s)
-                 ;; builtins
-                 (aif (gethash (make-keyword sym) *builtins*)
-                      (funcall it s)
-                      (error 'calc-undefined-function :name sym :package (calc-package *state*)))))
-           ;; The current package should always be defined, see calc-enter-package
-           ;; Every case should be covered, so this error should never happen
-           (t (error 'calc-unreachable :message "Current package not defined."))))))
+     (dispatch! input))
     ;; quote - technically, this lets you push arbitrary Common Lisp objects
     ;; onto the stack, even if they can't be evaluated, but I don't think
     ;; that will be a problem

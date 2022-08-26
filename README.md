@@ -250,9 +250,10 @@ library.bar + ;; 20
 - `drop` (or `pop`) - removes the top element of the stack
 - `dup` - duplicates the top element of the stack
 - `swap` - swaps the top two stack elements
-- `rot` - rotates the top 3 elements
+- `rot` - rotates the top 3 elements (moves the top element to 3rd)
+- `-rot` - does the opposite of rot
 - `roll` - rotates the entire stack (the top element becomes the bottom)
-- `unroll` - does the opposite of roll (the bottom element becomes the top)
+- `-roll` - does the opposite of roll (the bottom element becomes the top)
 
 ### Basic Numeric Operations
 - `+` - adds the top two numbers on the stack
@@ -335,8 +336,9 @@ library.bar + ;; 20
  - `nand` - returns the 0 if the top two elements are both true, 1 otherwise
  - `nor` - returns 1 if the top two elements are false, 0 otherwise
  - `switch` - if the top element is true, then the second top element, otherwise the third
- - `zerop` - returns 1 if the top element is 0, otherwise 0
- - `onep` - returns 1 if the top element is 1, otherwise 0
+ - `truep` - returns 1 if the top element is truthy, otherwise 0 (this should do nothing)
+ - `falsep` - returns 1 if the top element is falsy, otherwise 0 (this should do the same as `zerop`)
+ - `zerop` - returns 1 if the top element is 0, otherwise 0 (this should do the same as `falsep`)
  - `plusp` - returns 1 if the top element is positive, otherwise 0
  - `minusp` - returns 1 if the top element is negative, otherwise 0
  - `evenp` - returns 1 if the top element is even, otherwise 0
@@ -346,6 +348,7 @@ library.bar + ;; 20
  - `<` - returns 1 if a < b, where a and b are the top two stack elements, otherwise 0
  - `<=` - returns 1 if a <= b, where a and b are the top two stack elements, otherwise 0
  - `=` - returns 1 if a = b, where a and b are the top two stack elements, otherwise 0
+ - `approx` - returns 1 if the float of a is approximately equal to the float of b, where a and b are the top two stack elements, otherwise 0
 
 ### Constants (more to come)
  - `pi`, `e`, `phi`, `i`, `true`, `false`
@@ -364,7 +367,7 @@ library.bar + ;; 20
  - `(store)` - stores the top stack element into a named variable without popping it (see [Variables](#variables))
  - `(if)` - a conditional construct that allows for branched execution (see [Conditionals](#conditionals))
  - `(while)` - a construct that allows for looping (see [Looping](#looping))
- - `(package)` - enters a package (see [Packages](#packages))
+ - `(in-package)` - enters a package (see [Packages](#packages))
 
 ### Top-Level Actions (cannot be evaluated)
  - `quit` - quits the calculator

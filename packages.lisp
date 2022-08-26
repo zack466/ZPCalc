@@ -15,6 +15,7 @@
     #:expt-exact
     #:sqrt-exact
     #:->double
+    #:approx-equal
     #:bool->int)
   (:import-from
     #:zpcalc/actions
@@ -57,8 +58,10 @@
 (setf (gethash :DUP *builtins*) (dup!))
 (setf (gethash :ROT *builtins*) (do! (a <- pop!) (b <- pop!) (c <- pop!)
                                      (push! a) (push! c) (push! b)))
+(setf (gethash :-ROT *builtins*) (do! (a <- pop!) (b <- pop!) (c <- pop!)
+                                     (push! b) (push! a) (push! c)))
 (setf (gethash :ROLL *builtins*) (roll!))
-(setf (gethash :UNROLL *builtins*) (unroll!))
+(setf (gethash :-ROLL *builtins*) (unroll!))
 
 ;; Bitwise operations (two's complement)
 (setf (gethash :LNOT *builtins*) (apply-unary! #'lognot))
@@ -67,7 +70,7 @@
 (setf (gethash :LXOR *builtins*) (apply-binary! #'logxor))
 (setf (gethash :LNAND *builtins*) (apply-binary! #'lognand))
 (setf (gethash :LNOR *builtins*) (apply-binary! #'lognor))
-(setf (gethash :BIT *builtins*) (apply-binary! #'logbitp))
+(setf (gethash :BIT *builtins*) (apply-binary! (compose #'bool->int #'logbitp)))
 (setf (gethash :<< *builtins*) (apply-binary! #'ash))
 (setf (gethash :>> *builtins*) (apply-binary! #'(lambda (integer count) (ash integer (- count)))))
 
@@ -79,10 +82,9 @@
 (setf (gethash :XOR *builtins*) (apply-binary! (lambda (x y) (logxor (bool->int (truthy x)) (bool->int (truthy y))))))
 (setf (gethash :NAND *builtins*) (apply-binary! (lambda (x y) (bool->int (not (and (truthy x) (truthy y)))))))
 (setf (gethash :NOR *builtins*) (apply-binary! (lambda (x y) (bool->int (not (or (truthy x) (truthy y)))))))
+(setf (gethash :ZEROP *builtins*) (apply-unary! (compose #'bool->int #'zerop)))
 (setf (gethash :TRUEP *builtins*) (apply-unary! (compose #'bool->int #'truthy)))
 (setf (gethash :FALSEP *builtins*) (apply-unary! (compose #'bool->int #'falsy)))
-(setf (gethash :ZEROP *builtins*) (apply-unary! (compose #'bool->int #'zerop)))
-(setf (gethash :ONEP *builtins*) (apply-unary! #'(lambda (x) (bool->int (zerop (1- x))))))
 (setf (gethash :PLUSP *builtins*) (apply-unary! (compose #'bool->int #'plusp)))
 (setf (gethash :MINUSP *builtins*) (apply-unary! (compose #'bool->int #'minusp)))
 (setf (gethash :EVENP *builtins*) (apply-unary! (compose #'bool->int #'evenp)))
@@ -92,6 +94,7 @@
 (setf (gethash :< *builtins*) (apply-binary! (compose #'bool->int #'<)))
 (setf (gethash :<= *builtins*) (apply-binary! (compose #'bool->int #'<=)))
 (setf (gethash := *builtins*) (apply-binary! (compose #'bool->int #'=)))
+(setf (gethash :APPROX *builtins*) (apply-binary! (lambda (x y) (bool->int (approx-equal (->double x) (->double y))))))
 
 ;; misc functions
 (setf (gethash :INV *builtins*) (apply-unary! #'(lambda (x) (/ 1 x))))
@@ -145,7 +148,7 @@
 (setf (gethash :DENOMINATOR *builtins*) (apply-unary! #'denominator))
 (setf (gethash :COMPLEX *builtins*) (apply-binary! #'complex))
 (setf (gethash :CONJUGATE *builtins*) (apply-unary! #'conjugate))
-(setf (gethash :PHASE *builtins*) (apply-unary! #'phase))
+(setf (gethash :PHASE *builtins*) (apply-unary! (compose #'phase #'->double)))
 (setf (gethash :REALPART *builtins*) (apply-unary! #'realpart))
 (setf (gethash :IMAGPART *builtins*) (apply-unary! #'imagpart))
 
