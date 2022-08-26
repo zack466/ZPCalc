@@ -227,18 +227,6 @@
     ((and (symbolp input)
           (symbol= input 'rcl))
      (push! (calc-reg *state*)))
-    ;; package
-    ((and (symbolp input)
-          (symbol= input 'package))
-     (push! (calc-package *state*)))
-    ;; package-enter
-    ((and (symbolp input)
-          (symbol= input 'package-enter))
-     (do! (x <- pop!) (side-effect! (calc-enter-package *state* x)) (return!)))
-    ;; package-exists
-    ((and (symbolp input)
-          (symbol= input 'package-exists))
-     (do! (x <- pop!) (push! (bool->int (gethash x (calc-packages *state*))))))
     ;; all other symbols
     ((symbolp input)
      (dispatch! input))
@@ -253,12 +241,28 @@
           (symbol= 'in-package (car input)))
      (calc-enter-package *state* (cadr input))
      (return!))
-    ;; store variable
+    ;; with-package
     ((and (listp input)
+          (symbol= (car input) 'with-package))
+     (do! (let curr-package (calc-package *state*))
+          (side-effect! (calc-enter-package *state* (cadr input)))
+          (let body (>>> (mapcar #'(lambda (i) (compile-action i env)) (cddr input))))
+          body
+          (side-effect! (calc-enter-package *state* curr-package))))
+    ;; store variable without pop
+    ((and (listp input)
+          (= 2 (length input))
           (symbol= (car input) 'store)
           (symbolp (cadr input)))
      (do! (x <- top!) (store! (cadr input) x env)))
-
+    ;; store variable w instructions
+    ((and (listp input)
+          (symbol= (car input) 'store)
+          (symbolp (cadr input)))
+     (do! (let pre-action (>>> (mapcar #'(lambda (i) (compile-action i env)) (cddr input))))
+          pre-action
+          (x <- pop!)
+          (store! (cadr input) x env)))
     ;; (if (<condition>) (<then>) [(<else>)])
     ((and (listp input)
           (symbol= (car input) 'if))

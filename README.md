@@ -47,6 +47,10 @@ You can store the topmost stack value into a variable by entering `(store <var-n
 Then, entering `:<var-name>` will put the value of the variable onto the stack.
 If you store a value as part of the body of a function, the variable will not be accessible outside of the function's scope.
 
+Optionally, you can include instructions to execute before the store, and the topmost value will be popped off the stack.
+For example, if you want to store double the topmost value on the stack into `:x`, you can enter `(store x 2 *)`.
+This syntax also allows you to store constant values more easily: you can write `(store z 10)` instead of `10 (store z) drop`.
+
 There is also a function `sto` which stores the top value of the stack into an unnamed global register.
 The value of this register can be returned using `rcl`.
 This register is useful for temporary values that you need to store but don't want to bother assigning to an actual variable.
@@ -217,33 +221,15 @@ Here is an example of how packages can be used.
 (10 20 foo.bar) ;; 120
 ```
 
-There are also a few builtins that let you work with packages programmatically.
-You can push the name of the current package onto the stack with `package`.
-You can then enter this package with `package-enter`.
-Running `':user package-enter` does the same thing as `(in-package user)`.
-You can also check if a package already exists using `package-exists`.
-The point of these is so that you can load files with no effect on the current stack/package state.
-For an example, see below:
+If you would like to enter a package only temporarily, you can use the `with-package` construct.
+It will run code within a package and then return to the previous package.
 
 ```lisp
-;; library.zpc
+(with-package foo
+  (def bar dup *)
+)
 
-package ;; save the old package onto the stack
-
-(in-package library)
-(def foo 10)
-(def bar foo foo)
-
-package-enter ;; return to previous package
-
-;; in REPL
-(in-package foo)
-
-(load library.zpc)
-
-library.bar + ;; 20
-
-':library package-exists ;; 1
+10 foo.bar ;; 100
 ```
 
 ## Builtins
@@ -360,9 +346,6 @@ library.bar + ;; 20
  - `eval` - tries to "execute" the topmost value on the stack (see [Quoting](#quoting)).
  - `sto` - stores the top stack value into a global, unnamed register (without a pop)
  - `rcl` - recalls the value stored in the global, unnamed register onto the stack
- - `package` - pushes a symbol that represents the current package onto the stack
- - `package-enter` - enters the package named by the top element of the stack
- - `package-exists` - returns 1 if the top element of the stack represents a package that exists, 0 otherwise
 
 ### Special Constructs
  - `(def)` - creates a user-defined function (see [Functions](#functions))
