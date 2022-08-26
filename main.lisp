@@ -1,49 +1,19 @@
 (in-package :cl-user)
 
 (defpackage zpcalc
-  (:use :cl #:zpcalc/conditions)
-  (:import-from
-    #:zpcalc/env
-    #:make-env)
-  (:import-from
-    #:zpcalc/history
-    #:make-history
-    #:record
-    #:undo
-    #:redo)
-  (:import-from
-    #:zpcalc/packages
-    #:*all-packages*
-    #:*builtins*)
-  (:import-from
-    #:zpcalc/util
-    #:aif
-    #:acond
-    #:symbol=
-    #:package-designator
-    #:make-keyword
-    #:bool->int
-    #:truthy
-    )
-  (:import-from
+  (:use :cl
+    #:zpcalc/conditions
     #:zpcalc/actions
-    #:push!
-    #:pop!
-    #:side-effect!
-    #:do!
-    #:run!
-    #:store!
-    #:recall!
-    #:top!
-    #:return!
-    #:while!
-    #:>>>
-    )
+    #:zpcalc/util
+    #:zpcalc/env
+    #:zpcalc/history
+    #:zpcalc/packages)
   (:export
     #:Calc
     #:calc-stack
     #:calc-env
     #:calc-package
+    #:calc-packages
     #:calc-history
     #:calc-reg
     #:calc-undo
@@ -73,6 +43,14 @@
      :initarg env
      :initform (make-env)
      :accessor calc-env)
+   ;; all packages loaded
+   (packages
+     :initarg packages
+     :initform (let ((h (make-hash-table)))
+                 (setf (gethash :user h) (make-hash-table))
+                 (setf (gethash :builtins h) *builtins*)
+                 h)
+     :accessor calc-packages)
    ;; The name of the currently active package
    (current-package
      :initarg current-package
@@ -116,8 +94,8 @@
        (warn 'calc-invalid-package-name))
       ((equal name :builtins)
        (warn 'calc-cannot-enter-builtins))
-      (t (when (null (gethash name *all-packages*))
-           (setf (gethash name *all-packages*) (make-hash-table)))
+      (t (when (null (gethash name (calc-packages state)))
+           (setf (gethash name (calc-packages state)) (make-hash-table)))
          (setf (calc-package *state*) name)))))
 
 (defmethod calc-print ((state Calc))
@@ -165,14 +143,14 @@
     (package-designator input)
     (acond
       ;; package exists
-      ((and pkg (gethash pkg *all-packages*))
+      ((and pkg (gethash pkg (calc-packages *state*)))
        (aif (gethash (make-keyword sym) it)
             it
             (error 'calc-undefined-function :name sym :package pkg)))
       ;; package is not nil, but doesn't exist
       ((not (null pkg)) (error 'calc-undefined-package :name pkg))
       ;; look into current package
-      ((gethash (calc-package *state*) *all-packages*)
+      ((gethash (calc-package *state*) (calc-packages *state*))
        (aif (gethash (make-keyword sym) it)
             it
             ;; builtins
@@ -231,7 +209,7 @@
     ;; package-exists
     ((and (symbolp input)
           (symbol= input 'package-exists))
-     (do! (x <- pop!) (push! (bool->int (gethash x *all-packages*)))))
+     (do! (x <- pop!) (push! (bool->int (gethash x (calc-packages *state*))))))
     ;; all other symbols
     ((symbolp input)
      (dispatch! input))
@@ -277,7 +255,8 @@
         (cond
           ((find #\. (string (cadr input)))
            (warn 'calc-invalid-function-name))
-          (t (setf (gethash (make-keyword (cadr input)) (gethash (calc-package *state*) *all-packages*))
+          (t (setf (gethash (make-keyword (cadr input))
+                            (gethash (calc-package *state*) (calc-packages *state*)))
                    (>>> (mapcar #'(lambda (i) (compile-action i env)) (cddr input))))))
         (return!))
        ;; function function - makes arguments available as lexical variables
@@ -288,7 +267,8 @@
             ((find #\. (string fn-name))
              (warn 'calc-invalid-function-name))
             (t (let ((new-env (make-env env)))
-                 (setf (gethash (make-keyword fn-name) (gethash (calc-package *state*) *all-packages*))
+                 (setf (gethash (make-keyword fn-name)
+                                (gethash (calc-package *state*) (calc-packages *state*)))
                        (>>>
                          (append
                            ;; pop arguments off the stack, store them into variables
@@ -333,7 +313,8 @@
           (calc-stack-empty () (format t "Error: Not enough elements on stack~%"))
           (calc-cannot-evaluate (e) (format t "Cannot evaluate element: ~S~%" (calc-element e)))
           (calc-cannot-evaluate (e) (format t "Syntax error in element: ~S~%" (calc-element e)))
-          (calc-undefined-function (e) (format t "Function ~a not defined in package ~a~%" (calc-name e) (calc-package e)))
+          (calc-undefined-function (e) (format t "Function ~a not defined in package ~a~%"
+                                               (calc-name e) (calc-package e)))
           (calc-undefined-variable (e) (format t "Undefined variable ~S~%" (calc-name e)))
           (calc-undefined-package (e) (format t "Package ~a is not defined~%" (calc-name e)))
           (calc-invalid-package-name () (format t "Warning: package names cannot include \".\"~%"))

@@ -34,8 +34,6 @@
     #:*builtins*))
 (in-package :zpcalc/packages)
 
-(defvar *all-packages* (make-hash-table))
-
 ;; environment :: symbol -> action
 (defvar *builtins* (make-hash-table))
 
@@ -164,7 +162,3 @@
 (setf (gethash :CLEAR *builtins*) (set! nil))
 (setf (gethash :ID *builtins*) (return!)) ;; do nothing
 (setf (gethash :ERROR *builtins*) (lambda (s) (declare (ignorable s)) (signal "oopsie")))
-
-;; Initial packages
-(setf (gethash :user *all-packages*) (make-hash-table))
-(setf (gethash :builtins *all-packages*) *builtins*)

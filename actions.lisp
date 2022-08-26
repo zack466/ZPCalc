@@ -28,9 +28,16 @@
     #:while!
     #:apply-unary!
     #:apply-binary!
-    #:do!
     #:return!
     #:set!
+    #:>>=
+    #:>>
+    #:run!
+    #:get!
+    #:modify!
+    #:id!
+    #:do!
+    #:>>>
     #:side-effect!))
 (in-package :zpcalc/actions)
 
