@@ -24,7 +24,13 @@
     #:acond
     #:package-designator
     #:approx-equal
-    ))
+    #:factorial
+    #:choose
+    #:permute
+    #:prime
+    #:primep
+    #:phi
+    #:fib))
 (in-package :zpcalc/util)
 
 (defun symbol= (a b)
@@ -93,6 +99,50 @@ before comparison for floats with different exponents."
 
 (defun truthy (x)
   (not (falsy x)))
+
+(defun factorial (x)
+  (declare (type integer x))
+  (assert (>= x 0))
+  (labels ((rec (x acc)
+                (if (<= x 1)
+                  acc
+                  (rec (1- x) (* x acc)))))
+    (rec x 1)))
+
+;; binomial coefficient
+;; aka number of ways to choose k items out of n
+(defun choose (n k)
+  (assert (>= n k))
+  (/ (factorial n) (* (factorial k) (factorial (- n k)))))
+
+;; number of ways to permute k items out of n
+(defun permute (n k)
+  (assert (>= n k))
+  (/ (factorial n) (*  (factorial (- n k)))))
+
+;; nth fibonacci number using binet's formula
+(defun fib (n)
+  (assert (>= n 0))
+  (round (/ (- (expt (/ (+ 1 (sqrt 5.0d0)) 2.0d0) n)
+               (expt (/ (- 1 (sqrt 5.0d0)) 2.0d0) n)) (sqrt 5.0d0))))
+
+;; totient function
+;; copied algorithm from https://cp-algorithms.com/algebra/phi-function.html
+(defun phi (n)
+  (assert (>= n 1))
+  (let ((result n)
+        (i 2))
+    (loop while (<= (* i i) n)
+          do (progn
+               (when (= 0 (mod n i))
+                 (loop while (= 0 (mod n i))
+                       do (progn
+                            (setf n (truncate (/ n i)))
+                            (decf result (truncate (/ result i))))))
+               (incf i)))
+    (when (> n 1)
+      (decf result (truncate (/ result n))))
+    result))
 
 ;; taken from StackOverflow
 (defun make-keyword (name) (values (intern (string-upcase name) "KEYWORD")))

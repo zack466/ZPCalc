@@ -5,12 +5,13 @@
   :depends-on ()
   :serial t
   :components ((:file "util")
+               (:file "primes")
                (:file "env")
                (:file "state")
                (:file "conditions")
                (:file "history")
                (:file "actions")
-               (:file "packages")
+               (:file "builtins")
                (:file "main"))
   :description ""
   :build-operation "program-op"

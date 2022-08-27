@@ -7,7 +7,7 @@
     #:zpcalc/util
     #:zpcalc/env
     #:zpcalc/history
-    #:zpcalc/packages)
+    #:zpcalc/builtins)
   (:export
     #:Calc
     #:calc-stack

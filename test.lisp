@@ -109,6 +109,12 @@
 (test-stack square '(-2 square 4 square) '(4 16))
 (test-stack cube '(-2 cube 4 cube) '(-8 64))
 (test-stack isqrt '(4 isqrt 22 isqrt) '(2 4))
+(test-stack fib '(1 fib 10 fib) '(1 55))
+(test-stack fact '(10 fact) '(3628800))
+(test-stack prime '(10 prime) '(29))
+(test-stack totient '(3198 totient) '(960))
+(test-stack choose '(10 2 choose) '(45))
+(test-stack permute '(10 2 permute) '(90))
 
 ;; irrational, tries to preserve exactness
 (test-stack pow '(2 3 pow 2.5 2.5 pow) `(8 ,(expt 2.5d0 2.5d0)))
@@ -136,9 +142,6 @@
 (test-stack clear '(1 2 3 clear) '())
 (test-stack id '(1 2 3 id) '(1 2 3))
 (test-stack sto/rcl '(1 2 sto 3 rcl) '(1 2 3 2))
-(test-stack package '(package) '(:user))
-(test-stack package-enter '(':foo package-enter package) '(:foo))
-(test-stack package-exists '(':bar package-exists) '(0))
 
 ;; top level actions and special constructs
 (deftest undo
@@ -191,8 +194,14 @@
 
 (deftest in-package
   (let ((state (make-instance 'Calc)))
-    (calc-interact state '((in-package baz) package))
-    (assert (equal '(:baz) (reverse (calc-stack state))))))
+    (calc-interact state '((in-package baz)))
+    (assert (equal :baz (calc-package state)))))
+
+(deftest with-package
+  (let ((state (make-instance 'Calc)))
+    (calc-interact state '((with-package foo (def bar 11))))
+    (calc-interact state '(foo.bar))
+    (assert (equal '(11) (reverse (calc-stack state))))))
 
 ;; TODO: test example code
 

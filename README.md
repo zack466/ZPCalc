@@ -271,6 +271,13 @@ It will run code within a package and then return to the previous package.
  - `random` - returns a random integer between 0 (inclusive) and the top stack element (exclusive)
  - `rand` - returns a random float between 0 and 1
  - `isqrt` - returns the integer square root (rounded down) of the top stack element (which must be an integer)
+ - `fib` - returns the nth fibonacci number, where n is the top stack element
+ - `fact` - returns the factorial of the top stack element
+ - `prime` - returns the nth prime number, where n is the top stack element
+ - `primep` - returns 1 if the top stack element is prime, otherwise 0
+ - `totient` - returns phi of the top stack element (also known as the totient function)
+ - `choose` - returns n choose k, where n and k are on top of the stack (also known as the binomial coefficient)
+ - `permute` - returns n permute k, where n and k are on top of the stack
 
 ### Irrational Operations
  - `pow`  - returns a^b, where a and b are the top two stack elements. Tries to preserve exactness
@@ -354,6 +361,7 @@ It will run code within a package and then return to the previous package.
  - `(if)` - a conditional construct that allows for branched execution (see [Conditionals](#conditionals))
  - `(while)` - a construct that allows for looping (see [Looping](#looping))
  - `(in-package)` - enters a package (see [Packages](#packages))
+ - `(with-package)` - executes code within a package (see [Packages](#packages))
 
 ### Top-Level Actions (cannot be evaluated)
  - `quit` - quits the calculator

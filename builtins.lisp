@@ -1,6 +1,6 @@
 (in-package :cl-user)
 
-(defpackage zpcalc/packages
+(defpackage zpcalc/builtins
   (:use :cl)
   (:import-from
     #:zpcalc/util
@@ -16,7 +16,14 @@
     #:sqrt-exact
     #:->double
     #:approx-equal
-    #:bool->int)
+    #:bool->int
+    #:factorial
+    #:choose
+    #:permute
+    #:get-nth-prime
+    #:primep
+    #:phi
+    #:fib)
   (:import-from
     #:zpcalc/actions
     #:apply-unary!
@@ -32,7 +39,7 @@
   (:export
     #:*all-packages*
     #:*builtins*))
-(in-package :zpcalc/packages)
+(in-package :zpcalc/builtins)
 
 ;; environment :: symbol -> action
 (defvar *builtins* (make-hash-table))
@@ -113,6 +120,13 @@
 (setf (gethash :SQUARE *builtins*) (apply-unary! #'square))
 (setf (gethash :CUBE *builtins*) (apply-unary! (lambda (x) (* x x x))))
 (setf (gethash :ISQRT *builtins*) (apply-unary! #'isqrt))
+(setf (gethash :FACT *builtins*) (apply-unary! #'factorial))
+(setf (gethash :CHOOSE *builtins*) (apply-binary! #'choose))
+(setf (gethash :PERMUTE *builtins*) (apply-binary! #'permute))
+(setf (gethash :PRIME *builtins*) (apply-unary! #'get-nth-prime))
+(setf (gethash :PRIMEP *builtins*) (apply-unary! (compose #'bool->int #'primep)))
+(setf (gethash :TOTIENT *builtins*) (apply-unary! #'phi))
+(setf (gethash :FIB *builtins*) (apply-unary! #'fib))
 
 ;; irrational operations that try to preserve exactness
 (setf (gethash :POW *builtins*) (apply-binary! #'expt-exact))
