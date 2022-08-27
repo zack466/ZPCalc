@@ -43,12 +43,13 @@ Now, running `5 foo` will return `26/5`.
 ## Variables
 This calculator supports lexically-scoped variables.
 Variables are always prefixed with a colon (like `:x`, for example).
-You can store the topmost stack value into a variable by entering `(store <var-name>)`.
+You can store the topmost stack value into a variable (without popping it) by entering `(store <var-name>)`.
 Then, entering `:<var-name>` will put the value of the variable onto the stack.
 If you store a value as part of the body of a function, the variable will not be accessible outside of the function's scope.
 
-Optionally, you can include instructions to execute before the store, and the topmost value will be popped off the stack.
-For example, if you want to store double the topmost value on the stack into `:x`, you can enter `(store x 2 *)`.
+Optionally, you can include instructions to execute before the store, and the topmost value will be popped off the stack and then stored.
+For example, if you want to store double the topmost value on the stack into `:x`, you can enter `(store x dup 2 *)`.
+And just to be clear, writing `(store x dup)` does the same thing as `(store x)` (since in the first case the top element is popped, and in the second it is not).
 This syntax also allows you to store constant values more easily: you can write `(store z 10)` instead of `10 (store z) drop`.
 
 There is also a function `sto` which stores the top value of the stack into an unnamed global register.
@@ -112,7 +113,7 @@ For example:
 10 20 false switch  ;; evaluates to 10
 ```
 
-This works fine in certain circumstances, but it can be unwieldy to use.
+This works fine in certain circumstances, but it can be unwieldy.
 Another option is to the `if` construct.
 It takes three lists of instructions.
 It will evaluate the first set of actions, check if the topmost element of the stack is true or false (which will be popped from the stack), then decide whether to run the *then* clause or the *else* clause.
