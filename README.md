@@ -2,6 +2,8 @@
 
 An interactive [RPN](https://en.wikipedia.org/wiki/Reverse_Polish_notation) calculator and programming language inspired by Forth and Lisp.
 
+![zpcalc demo](zpcalc.gif)
+
 ## Installation
 
 Requirements: sbcl (or ecl)
