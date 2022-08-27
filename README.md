@@ -373,3 +373,5 @@ It will run code within a package and then return to the previous package.
 ## Addendum
 
 Float precision is annoying... `2 2 sqrt square =` returns `0` :(
+
+If you would like to read about my software design thought process, check out this blog post [here](https://www.zwhuang.dev/blog/monads_useful), where I explain why I chose to use the state monad as the core computational unit for this calculator.
