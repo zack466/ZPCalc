@@ -215,8 +215,7 @@
     ((and (symbolp input)
           (symbol= input 'eval))
      (do! (top <- pop!)
-          (let action (compile-action top env))
-          action))
+          (compile-action top env)))
     ;; sto
     ((and (symbolp input)
           (symbol= input 'sto))

@@ -72,8 +72,12 @@
 
 (defun sqrt-exact (x)
   (typecase x
-    (integer (if (is-isquare x) (isqrt x) (sqrt (->double x))))
-    (rational (if (and (is-isquare (numerator x))
+    (integer (if (and (plusp x)
+                      (is-isquare x))
+               (isqrt x)
+               (sqrt (->double x))))
+    (rational (if (and (plusp x)
+                       (is-isquare (numerator x))
                        (is-isquare (denominator x)))
                 (/ (isqrt (numerator x)) (isqrt (denominator x)))
                 (sqrt (->double x))))

@@ -143,6 +143,7 @@
 (test-stack clear '(1 2 3 clear) '())
 (test-stack id '(1 2 3 id) '(1 2 3))
 (test-stack sto/rcl '(1 2 sto 3 rcl) '(1 2 3 2))
+(test-stack eval '(70 80 'gcd eval) '(10))
 
 ;; top level actions and special constructs
 (deftest undo
