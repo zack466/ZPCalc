@@ -284,6 +284,7 @@ It will run code within a package and then return to the previous package.
 
 ### Irrational Operations
  - `pow`  - returns a^b, where a and b are the top two stack elements. Tries to preserve exactness
+ - `invpow`  - returns a^(1 / b), where a and b are the top two stack elements. Tries to preserve exactness
  - `sqrt` - returns the square root of the top stack element. Tries to preserve exactness
  - `log` - returns a log b, where a and b are the top two stack elements. Tries to preserve exactness
  - `lg` - returns the base 2 log of the top stack element. Tries to preserve exactness

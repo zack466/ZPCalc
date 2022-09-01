@@ -118,6 +118,7 @@
 
 ;; irrational, tries to preserve exactness
 (test-stack pow '(2 3 pow 2.5 2.5 pow) `(8 ,(expt 2.5d0 2.5d0)))
+(test-stack invpow '(8/27 3 invpow) `(2/3))
 (test-stack sqrt '(16 sqrt 30 sqrt) `(4 ,(sqrt 30.0d0)))
 (test-stack log '(100 10 log 22 5 log) `(2 ,(log 22.0d0 5.0d0)))
 (test-stack lg '(1024 lg 22 lg) `(10 ,(log 22.0d0 2.0d0)))

@@ -13,6 +13,7 @@
     #:is-pow
     #:log-exact
     #:expt-exact
+    #:invpow-exact
     #:sqrt-exact
     #:->double
     #:approx-equal
@@ -130,6 +131,7 @@
 
 ;; irrational operations that try to preserve exactness
 (setf (gethash :POW *builtins*) (apply-binary! #'expt-exact))
+(setf (gethash :INVPOW *builtins*) (apply-binary! #'invpow-exact))
 (setf (gethash :SQRT *builtins*) (apply-unary! #'sqrt-exact))
 (setf (gethash :LOG *builtins*) (apply-binary! #'log-exact))
 (setf (gethash :LG *builtins*) (apply-unary! #'(lambda (x) (log-exact x 2))))

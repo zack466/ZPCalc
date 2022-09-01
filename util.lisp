@@ -14,6 +14,7 @@
     #:log-exact
     #:expt-exact
     #:sqrt-exact
+    #:invpow-exact
     #:->double
     #:bool->int
     #:make-keyword
@@ -54,6 +55,7 @@
         nil))))
 
 ;; log, except tries to preserve exactness
+;; log_base (num)
 (defun log-exact (num base)
   (let ((result (is-pow num base)))
     (if result
@@ -76,6 +78,30 @@
                 (/ (isqrt (numerator x)) (isqrt (denominator x)))
                 (sqrt (->double x))))
     (t (sqrt (->double x)))))
+
+;; tries to preserve exactness of x ^ (1 / z)
+;; need to check if y exists such that y^z = x
+;; z = log_y (x)
+;; y ^ z = x
+(defun invpow-exact (x z)
+  (typecase x
+    (integer
+      (if (integerp z)
+        (let ((approx (expt x (/ 1 z))))
+          (if (= (expt (round approx) z) x)
+            (round approx)
+            (expt (->double x) (/ 1 (->double z)))))
+        (expt (->double x) (/ 1 (->double z)))))
+    (rational
+      (if (integerp z)
+        (let ((approx-num (expt (numerator x) (/ 1 z)))
+              (approx-den (expt (denominator x) (/ 1 z))))
+          (if (and (= (expt (round approx-num) z) (numerator x))
+                   (= (expt (round approx-den) z) (denominator x)))
+            (/ (round approx-num) (round approx-den))
+            (expt (->double x) (/ 1 (->double z)))))
+        (expt (->double x) (/ 1 (->double z)))))
+    (t (expt (->double x) (/ 1 (->double z))))))
 
 (defun expt-exact (a b)
   (if (and (or (integerp a) (rationalp a)) (integerp b))
@@ -101,8 +127,9 @@ before comparison for floats with different exponents."
   (not (falsy x)))
 
 (defun factorial (x)
-  (declare (type integer x))
-  (assert (>= x 0))
+  (check-type x integer)
+  (if (< x 0)
+    (error "~S is an invalid argument for factorial" x))
   (labels ((rec (x acc)
                 (if (<= x 1)
                   acc
@@ -112,24 +139,28 @@ before comparison for floats with different exponents."
 ;; binomial coefficient
 ;; aka number of ways to choose k items out of n
 (defun choose (n k)
-  (assert (>= n k))
+  (if (< n k)
+    (error "~S and ~S are invalid arguments to choose" n k))
   (/ (factorial n) (* (factorial k) (factorial (- n k)))))
 
 ;; number of ways to permute k items out of n
 (defun permute (n k)
-  (assert (>= n k))
+  (if (< n k)
+    (error "~S and ~S are invalid arguments to permute" n k))
   (/ (factorial n) (*  (factorial (- n k)))))
 
 ;; nth fibonacci number using binet's formula
 (defun fib (n)
-  (assert (>= n 0))
+  (if (< n 0)
+    (error "~S is an invalid argument to fib" n))
   (round (/ (- (expt (/ (+ 1 (sqrt 5.0d0)) 2.0d0) n)
                (expt (/ (- 1 (sqrt 5.0d0)) 2.0d0) n)) (sqrt 5.0d0))))
 
 ;; totient function
 ;; copied algorithm from https://cp-algorithms.com/algebra/phi-function.html
 (defun phi (n)
-  (assert (>= n 1))
+  (if (<= n 0)
+    (error "~S is an invalid argument to totient" n))
   (let ((result n)
         (i 2))
     (loop while (<= (* i i) n)
