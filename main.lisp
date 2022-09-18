@@ -175,6 +175,9 @@
     ;; variable
     ((keywordp input)
      (recall! input env))
+    ;; structure
+    ((vectorp input)
+     (push! input))
     ;; some debugging tools
     ;; disassemble
     ((and (symbolp input)
@@ -222,6 +225,12 @@
      (do! (top <- top!)
           (let x (setf (calc-reg *state*) top))
           (return! x)))
+    ;; sto!
+    ((and (symbolp input)
+          (symbol= input 'sto!))
+     (do! (top <- pop!)
+          (let x (setf (calc-reg *state*) top))
+          (return! x)))
     ;; rcl
     ((and (symbolp input)
           (symbol= input 'rcl))
@@ -235,6 +244,14 @@
     ((and (listp input)
           (eq (car input) 'quote))
      (push! (cadr input)))
+    ;; repeat
+    ((and (listp input)
+          (symbol= (car input) 'repeat))
+     (let ((times (compile-action (cadr input) env))
+           (body (>>> (mapcar #'(lambda (i) (compile-action i env)) (cddr input)))))
+       (do! times
+            (n <- pop!)
+            (repeat! n body))))
     ;; in-package
     ((and (listp input)
           (symbol= 'in-package (car input)))
@@ -254,14 +271,12 @@
           (symbol= (car input) 'store)
           (symbolp (cadr input)))
      (do! (x <- top!) (store! (cadr input) x env)))
-    ;; store variable w instructions
+    ;; store variable without pop
     ((and (listp input)
-          (symbol= (car input) 'store)
+          (= 2 (length input))
+          (symbol= (car input) 'store!)
           (symbolp (cadr input)))
-     (do! (let pre-action (>>> (mapcar #'(lambda (i) (compile-action i env)) (cddr input))))
-          pre-action
-          (x <- pop!)
-          (store! (cadr input) x env)))
+     (do! (x <- pop!) (store! (cadr input) x env)))
     ;; (if (<condition>) (<then>) [(<else>)])
     ((and (listp input)
           (symbol= (car input) 'if))
@@ -319,14 +334,17 @@
     (format t "~%")
     ret))
 
-;; TODO: add vectors (can be used as general purpose lists?)
+;; TODO: add vectors (used as general purpose data structures)
+;;        - can be indexed using a builtin op
+;;        - used as a generic structure, can be operated on by module-specific functions
+;;        - ex: vector.+ would expect two structs, both of which have two elements of type number
+;;        - objects could include: vectors, ranges, etc
 ;; TODO: symbolic computation?
-;; TODO: add basic structs/objects?
-;; TODO: ranges
 ;; TODO: standard library of packages (phys, nt, etc)
 ;; TODO: add read from file (and a command line interface)
 ;; TODO: more complex tui using ncurses/cl-charms (or maybe croaton)
 ;; TODO: graphing
+;; TODO: better error messages and more type checks (try to avoid showing common lisp errors)
 (defun main ()
   (let ((calc (make-instance 'calc))
         (*read-default-float-format* 'double-float)

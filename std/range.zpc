@@ -1,0 +1,42 @@
+(with-package range
+
+(def make 2 make-struct)
+
+(def start 1 elt)
+(def end 2 elt)
+
+;; produces the next value in the range along with the updated range
+(def (next r)
+  :r range.start
+  (if (:r range.start :r range.end <)
+    (dup inc :r range.end range.make))
+)
+
+;; expands out an entire range, pushing all of its elements onto the stack
+(def (expand r)
+  :r range.start
+  (while (dup :r range.end <)
+    dup inc)
+)
+
+;; reduces a range r given an initial value i and a binary operator f
+(def (reduce r i f)
+  :i
+  :r range.start (store! i)
+  (while (:i :r range.end <= )
+    :i :f eval
+    :i inc (store! i)
+  )
+)
+
+;; repeats a function for each value in a range
+;; the current index i is provided as an argument to the function
+(def (for r f)
+  :r range.start (store! i)
+  (while (:i :r range.end <= )
+    :i :f eval
+    :i inc (store! i)
+  )
+)
+
+)

@@ -5,6 +5,7 @@
   (:import-from
     #:zpcalc/util
     #:compose
+    #:id
     #:bool->int
     #:truthy
     #:falsy
@@ -30,13 +31,16 @@
     #:apply-unary!
     #:apply-binary!
     #:pop!
+    #:popn!
+    #:append!
     #:push!
     #:dup!
     #:roll!
     #:unroll!
     #:do!
     #:set!
-    #:return!)
+    #:return!
+    #:side-effect!)
   (:export
     #:*all-packages*
     #:*builtins*))
@@ -173,6 +177,28 @@
 (setf (gethash :I *builtins*) (push! #C(0 1)))
 (setf (gethash :TRUE *builtins*) (push! 1))
 (setf (gethash :FALSE *builtins*) (push! 0))
+
+;; structures
+(setf (gethash :MAKE-STRUCT *builtins*)
+      (do! (n <- pop!)
+            (ele <- popn! n)
+            (push! (apply #'vector (reverse ele)))))
+
+(setf (gethash :ELT *builtins*)
+      (do! (n <- pop!)
+           (struct <- pop!)
+           (side-effect! (assert (and (>= n 1) (<= n (length struct)))))
+           (push! (elt struct (- n 1)))))
+
+(setf (gethash :SIZE *builtins*)
+      (do! (struct <- pop!)
+           (push! (length struct))))
+
+(setf (gethash :UNMAKE-STRUCT *builtins*)
+      (do! (struct <- pop!)
+           (let l (length struct))
+           (append! (reverse (map 'list #'id struct)))
+           (push! l)))
 
 ;; special functions
 (setf (gethash :CLEAR *builtins*) (set! nil))

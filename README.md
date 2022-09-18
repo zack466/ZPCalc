@@ -46,15 +46,11 @@ Now, running `5 foo` will return `26/5`.
 This calculator supports lexically-scoped variables.
 Variables are always prefixed with a colon (like `:x`, for example).
 You can store the topmost stack value into a variable (without popping it) by entering `(store <var-name>)`.
+If you *do* want the top value to be popped before being stored, use `store!` instead of `store`..
 Then, entering `:<var-name>` will put the value of the variable onto the stack.
 If you store a value as part of the body of a function, the variable will not be accessible outside of the function's scope.
 
-Optionally, you can include instructions to execute before the store, and the topmost value will be popped off the stack and then stored.
-For example, if you want to store double the topmost value on the stack into `:x`, you can enter `(store x dup 2 *)`.
-And just to be clear, writing `(store x dup)` does the same thing as `(store x)` (since in the first case the top element is popped, and in the second it is not).
-This syntax also allows you to store constant values more easily: you can write `(store z 10)` instead of `10 (store z) drop`.
-
-There is also a function `sto` which stores the top value of the stack into an unnamed global register.
+There is also a function `sto` which stores the top value of the stack into an unnamed global register (plus a popping alternative `sto!`).
 The value of this register can be returned using `rcl`.
 This register is useful for temporary values that you need to store but don't want to bother assigning to an actual variable.
 
@@ -236,6 +232,82 @@ It will run code within a package and then return to the previous package.
 10 foo.bar ;; 100
 ```
 
+## Structs
+
+Custom data types can be created by conjoining elements into a *struct*.
+Structs are simply Common Lisp vectors (resizeable arrays).
+Structs can be pushed directly onto the stack using `#(a b c)` syntax (where a, b, and c are the elements in the struct).
+Additionally, you can create a struct from the top `n` elements of the stack using `n make-struct`.
+You can also "unmake" a struct, which will cause all of its elements to be pushed onto the stack, along with its length.
+
+To get an element out of a struct, provide a one-based index and use `elt`.
+For example, `#(a b c) 2 elt` will result in `b`.
+You can get the number of elements in a struct with `size`.
+
+## Putting it all together
+
+Here is a simple implementation of lazy integer ranges with the ZPCalc language (also accessible in `std/range.zpc`).
+
+```
+(with-package range
+
+(def make 2 make-struct)
+
+(def start 1 elt)
+(def end 2 elt)
+
+;; produces the next value in the range along with the updated range
+(def (next r)
+  :r range.start
+  (if (:r range.start :r range.end <)
+    (dup inc :r range.end range.make))
+)
+
+;; expands out an entire range, pushing all of its elements onto the stack
+(def (expand r)
+  :r range.start
+  (while (dup :r range.end <)
+    dup inc)
+)
+
+;; reduces a range r given an initial value i and a binary operator f
+(def (reduce r i f)
+  :i
+  :r range.start (store! i)
+  (while (:i :r range.end <= )
+    :i :f eval
+    :i inc (store! i)
+  )
+)
+
+;; repeats a function for each value in a range
+;; the current index i is provided as an argument to the function
+(def (for r f)
+  :r range.start (store! i)
+  (while (:i :r range.end <= )
+    :i :f eval
+    :i inc (store! i)
+  )
+)
+
+)
+```
+
+Here are some ways you can use this range library:
+
+```
+;; generating lots of numbers
+(1 100 range.make range.expand) ;; 1 2 3 4 ... 100
+
+;; calculating factorials
+(1 10 range.make 1 '* range.reduce) ;; 3628800
+
+;; generate all prime numbers less than 100
+(1 100 range.make
+  '(dup (if (primep not) (drop)))
+  range.for)
+```
+
 ## Builtins
 
 ### Stack Manipulation
@@ -350,6 +422,12 @@ It will run code within a package and then return to the previous package.
  - `=` - returns 1 if a = b, where a and b are the top two stack elements, otherwise 0
  - `approx` - returns 1 if the float of a is approximately equal to the float of b, where a and b are the top two stack elements, otherwise 0
 
+### Structures (see [Structs](#structs))
+ - `make-struct` - returns a struct made from the top `n` elements of the stack
+ - `unmake-struct` - "unmakes" the top element on the stack
+ - `elt` - returns an element from a stack given an index
+ - `size` - returns the number of elements in a stack
+
 ### Constants (more to come)
  - `pi`, `e`, `phi`, `i`, `true`, `false`
 
@@ -357,15 +435,18 @@ It will run code within a package and then return to the previous package.
  - `clear` - clears the stack
  - `eval` - tries to "execute" the topmost value on the stack (see [Quoting](#quoting)).
  - `sto` - stores the top stack value into a global, unnamed register (without a pop)
+ - `sto!` - stores the top stack value into a global, unnamed register (with a pop)
  - `rcl` - recalls the value stored in the global, unnamed register onto the stack
 
 ### Special Constructs
- - `(def)` - creates a user-defined function (see [Functions](#functions))
- - `(store)` - stores the top stack element into a named variable without popping it (see [Variables](#variables))
- - `(if)` - a conditional construct that allows for branched execution (see [Conditionals](#conditionals))
- - `(while)` - a construct that allows for looping (see [Looping](#looping))
- - `(in-package)` - enters a package (see [Packages](#packages))
- - `(with-package)` - executes code within a package (see [Packages](#packages))
+ - `(def <name-or-args> <body>...)` - creates a user-defined function (see [Functions](#functions))
+ - `(store <var>)` - stores the top stack element into a named variable without popping it (see [Variables](#variables))
+ - `(store! <var>)` - stores the top stack element into a named variable, popping it at the same time (see [Variables](#variables))
+ - `(if (<condition>) (<then>) (<else>))` - a conditional construct that allows for branched execution (see [Conditionals](#conditionals))
+ - `(while (<condition>) <body>...)` - a construct that allows for looping (see [Looping](#looping))
+ - `(in-package <package>)` - enters a package (see [Packages](#packages))
+ - `(with-package <package>)` - executes code within a package (see [Packages](#packages))
+ - `(repeat <n> <body>...)` - executes the `body` `n` times.
 
 ### Top-Level Actions (cannot be evaluated)
  - `quit` - quits the calculator

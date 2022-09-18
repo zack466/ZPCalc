@@ -3,6 +3,7 @@
 (defpackage zpcalc/util
   (:use :cl)
   (:export
+    #:id
     #:mkstr
     #:symb
     #:symbol=
@@ -33,6 +34,8 @@
     #:phi
     #:fib))
 (in-package :zpcalc/util)
+
+(defun id (i) i)
 
 (defun symbol= (a b)
   (if (and (symbolp a) (symbolp b))

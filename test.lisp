@@ -205,6 +205,27 @@
     (calc-interact state '(foo.bar))
     (assert (equal '(11) (reverse (calc-stack state))))))
 
+;; structs
+(deftest make-struct
+  (let ((state (make-instance 'Calc)))
+    (calc-interact state '(1 10 2 make-struct))
+    (assert (equalp '(#(1 10)) (reverse (calc-stack state))))))
+
+(deftest unmake-struct
+  (let ((state (make-instance 'Calc)))
+    (calc-interact state '(#(1 10) unmake-struct))
+    (assert (equal '(1 10 2) (reverse (calc-stack state))))))
+
+(deftest elt
+  (let ((state (make-instance 'Calc)))
+    (calc-interact state '(#(1 2 3 4) 3 elt))
+    (assert (equal '(3) (reverse (calc-stack state))))))
+
+(deftest size
+  (let ((state (make-instance 'Calc)))
+    (calc-interact state '(#(1 2 3 4) size))
+    (assert (equal '(4) (reverse (calc-stack state))))))
+
 ;; TODO: test example code
 
 ;; TODO: some more complex examples and edge cases

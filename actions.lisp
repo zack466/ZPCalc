@@ -17,8 +17,10 @@
   (:export
     #:run!
     #:push!
+    #:append!
     #:top!
     #:pop!
+    #:popn!
     #:drop!
     #:dup!
     #:roll!
@@ -26,6 +28,7 @@
     #:store!
     #:recall!
     #:while!
+    #:repeat!
     #:apply-unary!
     #:apply-binary!
     #:return!
@@ -55,6 +58,14 @@
 (defmacro pop! ()
   (with-gensyms (s)
     `(lambda (,s) (if (null ,s) (error 'calc-stack-empty) (cons (car ,s) (cdr ,s))))))
+
+;; pop the top n elements of the stack and return them in a list
+(defmacro popn! (n)
+  (with-gensyms (s)
+    `(lambda (,s)
+       (if (< (length ,s) ,n)
+         (error 'calc-stack-empty)
+         (cons (butlast ,s (- (length ,s) ,n)) (nthcdr ,n ,s))))))
 
 (defmacro dup! ()
   (with-gensyms (s)
@@ -104,6 +115,19 @@
                (let ((,s%%% (cdr (funcall ,body-action ,s%%))))
                  (setf ,s ,s%%%))
                (return (cons nil ,s%%)))))))))
+
+(defmacro repeat! (n action)
+  (with-gensyms (s r)
+    `(lambda (,s)
+       (let ((,r (cons nil ,s)))
+         (loop for j from 1 to ,n
+            do (setf ,r (funcall ,action (cdr ,r))))
+         ,r))))
+
+(defmacro append! (xs)
+  (with-gensyms (s)
+    `(lambda (,s)
+       (cons nil (append ,xs ,s)))))
 
 (defun apply-unary! (op)
   (do! (a <- pop!)
